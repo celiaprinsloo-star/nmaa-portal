@@ -72,6 +72,11 @@ const emptySchool = {
   affiliation_status: "pending",
 };
 
+const emptyEmail = {
+  subject: "NMAA SA Portal Update",
+  message: "",
+};
+
 function raceSummary(raceCounts?: Record<string, number>) {
   if (!raceCounts || Object.keys(raceCounts).length === 0) {
     return "Race: no data";
@@ -91,7 +96,7 @@ function schoolInitials(name: string) {
     .join("");
 }
 
-function schoolEmailHref(schools: School[]) {
+function schoolEmailCount(schools: School[]) {
   const emails = Array.from(
     new Set(
       schools
@@ -100,9 +105,7 @@ function schoolEmailHref(schools: School[]) {
     ),
   );
 
-  if (emails.length === 0) return "";
-
-  return `mailto:?bcc=${encodeURIComponent(emails.join(","))}&subject=${encodeURIComponent("NMAA SA Portal Update")}`;
+  return emails.length;
 }
 
 export default function SchoolsClient() {
@@ -111,6 +114,8 @@ export default function SchoolsClient() {
   const [provinces, setProvinces] = useState<Province[]>([]);
   const [editingId, setEditingId] = useState("");
   const [form, setForm] = useState(emptySchool);
+  const [emailForm, setEmailForm] = useState(emptyEmail);
+  const [emailSuccess, setEmailSuccess] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const formSectionRef = useRef<HTMLElement | null>(null);
@@ -151,6 +156,10 @@ export default function SchoolsClient() {
 
   function updateField(field: keyof typeof emptySchool, value: string) {
     setForm((current) => ({ ...current, [field]: value }));
+  }
+
+  function updateEmailField(field: keyof typeof emptyEmail, value: string) {
+    setEmailForm((current) => ({ ...current, [field]: value }));
   }
 
   function resetForm() {
@@ -201,6 +210,32 @@ export default function SchoolsClient() {
     await loadSchools(token);
   }
 
+  async function sendSchoolEmail(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setBusy(true);
+    setError("");
+    setEmailSuccess("");
+
+    const response = await fetch("/api/admin/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(emailForm),
+    });
+    const payload = await response.json();
+    setBusy(false);
+
+    if (!response.ok) {
+      setError(payload.error ?? "Unable to send email.");
+      return;
+    }
+
+    setEmailSuccess(`Email sent to ${payload.recipient_count} school contact${payload.recipient_count === 1 ? "" : "s"}.`);
+    setEmailForm(emptyEmail);
+  }
+
   async function deleteSchool(schoolId: string) {
     setBusy(true);
     setError("");
@@ -226,7 +261,7 @@ export default function SchoolsClient() {
     return schoolCardStyle;
   }
 
-  const emailAllHref = schoolEmailHref(schools);
+  const emailCount = schoolEmailCount(schools);
 
   return (
     <main className="app-page">
@@ -238,17 +273,32 @@ export default function SchoolsClient() {
           <p className="muted">Quickly review school status, student stats, and compliance health.</p>
         </div>
         <div className="row-actions">
-          {emailAllHref ? (
-            <a className="primary-button compact" href={emailAllHref}>
-              Email all schools
-            </a>
-          ) : (
-            <span className="secondary-button compact disabled-control">No school emails</span>
-          )}
           <Link className="secondary-button compact" href="/dashboard">Dashboard</Link>
           <SignOutButton />
         </div>
       </header>
+
+      <section className="content-shell">
+        <form className="admin-form" onSubmit={sendSchoolEmail}>
+          <h2>Email schools</h2>
+          <p className="muted">
+            Send a direct email to {emailCount} school contact{emailCount === 1 ? "" : "s"} from the portal.
+          </p>
+          <label>
+            Subject
+            <input value={emailForm.subject} onChange={(event) => updateEmailField("subject", event.target.value)} required />
+          </label>
+          <label>
+            Message
+            <textarea className="order-summary-text" rows={6} value={emailForm.message} onChange={(event) => updateEmailField("message", event.target.value)} required />
+          </label>
+          {emailSuccess ? <p className="form-success">{emailSuccess}</p> : null}
+          {error ? <p className="form-error">{error}</p> : null}
+          <button className="primary-button compact" disabled={busy || emailCount === 0} type="submit">
+            Send email to schools
+          </button>
+        </form>
+      </section>
 
       <section className="content-shell table-list">
         {schools.map((school) => (

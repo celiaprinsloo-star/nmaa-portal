@@ -16,6 +16,18 @@ const emptyBooking = {
   notes: "",
 };
 
+const emptyEvent = {
+  title: "",
+  event_type: "school_event",
+  description: "",
+  venue: "",
+  starts_at: "",
+  ends_at: "",
+  capacity: "",
+};
+
+const eventTypes = ["school_event", "grading", "class", "seminar", "meeting", "social"];
+
 function displayDate(value: string) {
   return new Date(value).toLocaleString("en-ZA", {
     dateStyle: "medium",
@@ -64,6 +76,8 @@ export default function SchoolEventsClient() {
   const [events, setEvents] = useState<PortalEvent[]>([]);
   const [bookings, setBookings] = useState<EventBooking[]>([]);
   const [form, setForm] = useState(emptyBooking);
+  const [eventForm, setEventForm] = useState(emptyEvent);
+  const [canCreateEvents, setCanCreateEvents] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
@@ -88,6 +102,7 @@ export default function SchoolEventsClient() {
     const nextEvents = payload.events ?? [];
     setEvents(nextEvents);
     setBookings(payload.bookings ?? []);
+    setCanCreateEvents(Boolean(payload.can_create_events));
     setForm((current) => ({
       ...current,
       event_id: current.event_id || nextEvents[0]?.id || "",
@@ -115,6 +130,10 @@ export default function SchoolEventsClient() {
 
   function updateField(field: keyof typeof emptyBooking, value: string) {
     setForm((current) => ({ ...current, [field]: value }));
+  }
+
+  function updateEventField(field: keyof typeof emptyEvent, value: string) {
+    setEventForm((current) => ({ ...current, [field]: value }));
   }
 
   function selectEvent(eventId: string) {
@@ -149,6 +168,31 @@ export default function SchoolEventsClient() {
       ...emptyBooking,
       event_id: current.event_id,
     }));
+    await loadEvents(token);
+  }
+
+  async function saveEvent(formEvent: FormEvent<HTMLFormElement>) {
+    formEvent.preventDefault();
+    setBusy(true);
+    setError("");
+
+    const response = await fetch("/api/events/create", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(eventForm),
+    });
+    const payload = await response.json();
+    setBusy(false);
+
+    if (!response.ok) {
+      setError(payload.error ?? "Unable to create event.");
+      return;
+    }
+
+    setEventForm(emptyEvent);
     await loadEvents(token);
   }
 
@@ -189,6 +233,45 @@ export default function SchoolEventsClient() {
       {error ? <section style={shellStyle}><p className="form-error">{error}</p></section> : null}
 
       <section className="two-column-workspace">
+        {canCreateEvents ? (
+        <form className="admin-form" onSubmit={saveEvent}>
+          <h2>Create school event</h2>
+          <label>
+            Event name
+            <input value={eventForm.title} onChange={(event) => updateEventField("title", event.target.value)} required />
+          </label>
+          <label>
+            Event type
+            <select value={eventForm.event_type} onChange={(event) => updateEventField("event_type", event.target.value)}>
+              {eventTypes.map((type) => (
+                <option key={type} value={type}>{type.replaceAll("_", " ")}</option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Venue
+            <input value={eventForm.venue} onChange={(event) => updateEventField("venue", event.target.value)} />
+          </label>
+          <label>
+            Start date and time
+            <input type="datetime-local" value={eventForm.starts_at} onChange={(event) => updateEventField("starts_at", event.target.value)} required />
+          </label>
+          <label>
+            End date and time
+            <input type="datetime-local" value={eventForm.ends_at} onChange={(event) => updateEventField("ends_at", event.target.value)} />
+          </label>
+          <label>
+            Capacity
+            <input min="0" type="number" value={eventForm.capacity} onChange={(event) => updateEventField("capacity", event.target.value)} />
+          </label>
+          <label>
+            Notes for attendees
+            <textarea className="order-summary-text" rows={4} value={eventForm.description} onChange={(event) => updateEventField("description", event.target.value)} />
+          </label>
+          <button className="primary-button compact" disabled={busy} type="submit">Create event</button>
+        </form>
+        ) : null}
+
         <form className="admin-form" id="attendee-form" onSubmit={saveBooking}>
           <h2>Add attendee</h2>
           <label>

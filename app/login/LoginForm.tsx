@@ -9,6 +9,7 @@ export default function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const nextPath = searchParams.get("next") || "/dashboard";
 
@@ -16,6 +17,7 @@ export default function LoginForm() {
     event.preventDefault();
     setBusy(true);
     setError("");
+    setMessage("");
 
     const supabase = createSupabaseBrowserClient();
     const { error: signInError } = await supabase.auth.signInWithPassword({
@@ -30,6 +32,32 @@ export default function LoginForm() {
     }
 
     window.location.href = nextPath;
+  }
+
+  async function sendResetEmail() {
+    setBusy(true);
+    setError("");
+    setMessage("");
+
+    if (!email) {
+      setBusy(false);
+      setError("Enter your email address first, then request a password reset.");
+      return;
+    }
+
+    const supabase = createSupabaseBrowserClient();
+    const redirectTo = `${window.location.origin}/reset-password`;
+    const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo,
+    });
+    setBusy(false);
+
+    if (resetError) {
+      setError(resetError.message);
+      return;
+    }
+
+    setMessage("Password reset email sent. Check your inbox.");
   }
 
   return (
@@ -55,8 +83,12 @@ export default function LoginForm() {
         />
       </label>
       {error ? <p className="form-error">{error}</p> : null}
+      {message ? <p className="form-success">{message}</p> : null}
       <button className="primary-button" disabled={busy} type="submit">
         {busy ? "Signing in..." : "Sign in"}
+      </button>
+      <button className="secondary-button" disabled={busy} onClick={sendResetEmail} type="button">
+        Forgot password
       </button>
     </form>
   );

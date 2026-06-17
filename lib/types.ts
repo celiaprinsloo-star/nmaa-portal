@@ -181,6 +181,8 @@ export type ComplianceDocument = {
   expires_at: string | null;
   compliance_requirements?: Pick<ComplianceRequirement, "name" | "category"> | null;
   schools?: Pick<School, "name"> | null;
+  instructors?: Pick<Instructor, "full_name"> | null;
+  students?: Pick<Student, "first_name" | "last_name"> | null;
 };
 
 export type PortalDocument = {

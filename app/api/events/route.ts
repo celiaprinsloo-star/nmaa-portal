@@ -53,7 +53,11 @@ export async function GET(request: Request) {
     booking_count: bookingsResult.data.filter((booking) => booking.event_id === event.id).length,
   }));
 
-  return Response.json({ events, bookings: bookingsResult.data });
+  return Response.json({
+    events,
+    bookings: bookingsResult.data,
+    can_create_events: user.profile.role === "school_owner",
+  });
 }
 
 export async function POST(request: Request) {

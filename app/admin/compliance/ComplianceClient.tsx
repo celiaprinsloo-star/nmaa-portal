@@ -134,6 +134,30 @@ export default function ComplianceClient() {
     await loadRequirements(token);
   }
 
+  async function downloadDocument(documentId: string) {
+    setBusy(true);
+    setError("");
+
+    const response = await fetch(`/api/admin/compliance-documents/${documentId}/download`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const payload = await response.json();
+    setBusy(false);
+
+    if (!response.ok) {
+      setError(payload.error ?? "Unable to download compliance document.");
+      return;
+    }
+
+    window.open(payload.url, "_blank", "noopener,noreferrer");
+  }
+
+  function documentOwner(document: ComplianceDocument) {
+    if (document.instructors?.full_name) return document.instructors.full_name;
+    if (document.students) return `${document.students.first_name} ${document.students.last_name}`;
+    return document.schools?.name ?? "No owner recorded";
+  }
+
   return (
     <main className="app-page">
       <header className="page-header">
@@ -159,10 +183,17 @@ export default function ComplianceClient() {
               <div>
                 <h2>{document.document_name}</h2>
                 <p>
-                  {document.schools?.name ?? "No school"} | {document.compliance_requirements?.name ?? "General"} | {document.status} | {document.expires_at ?? "no expiry"}
+                  {documentOwner(document)} | {document.schools?.name ?? "No school"} | {document.compliance_requirements?.name ?? "General"} | {document.status} | {document.expires_at ?? "no expiry"}
                 </p>
               </div>
-              {document.file_name ? <span className="status-pill">{document.file_name}</span> : null}
+              <div className="row-actions">
+                {document.file_name ? <span className="status-pill">{document.file_name}</span> : null}
+                {document.storage_path ? (
+                  <button className="secondary-button compact" disabled={busy} onClick={() => downloadDocument(document.id)} type="button">
+                    Download
+                  </button>
+                ) : null}
+              </div>
             </article>
           ))
         )}

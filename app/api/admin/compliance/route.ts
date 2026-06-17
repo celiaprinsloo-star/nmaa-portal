@@ -30,7 +30,7 @@ export async function GET(request: Request) {
     .order("name");
   const documentsQuery = supabase
     .from("compliance_documents")
-    .select("id,school_id,instructor_id,student_id,requirement_id,document_name,storage_path,file_name,file_type,file_size,status,expires_at,compliance_requirements(name,category),schools(name)")
+    .select("id,school_id,instructor_id,student_id,requirement_id,document_name,storage_path,file_name,file_type,file_size,status,expires_at,compliance_requirements(name,category),schools(name),instructors(full_name),students(first_name,last_name)")
     .order("expires_at");
   const schoolsQuery = supabase.from("schools").select("id,name").order("name");
 

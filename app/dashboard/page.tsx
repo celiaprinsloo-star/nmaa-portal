@@ -13,6 +13,18 @@ type DashboardCard = {
   href?: string;
 };
 
+type CalendarItem = {
+  id: string;
+  type: "event" | "tournament" | "compliance";
+  title: string;
+  date: string;
+  end_date: string | null;
+  location: string | null;
+  status: string | null;
+  owner: string | null;
+  href: string;
+};
+
 const cardSets: Record<UserRole, DashboardCard[]> = {
   super_admin: [
     { title: "Approvals", description: "Review pending users and assign access.", href: "/admin/approvals" },
@@ -61,8 +73,76 @@ const cardSets: Record<UserRole, DashboardCard[]> = {
   ],
 };
 
+const calendarShellStyle = {
+  width: "min(1180px, 100%)",
+  margin: "0 auto 22px",
+  display: "grid",
+  gridTemplateColumns: "minmax(0, 1fr) 360px",
+  gap: "18px",
+  alignItems: "start",
+} satisfies React.CSSProperties;
+
+const calendarPanelStyle = {
+  display: "grid",
+  gap: "14px",
+  padding: "18px",
+  background: "#ffffff",
+  border: "1px solid #d9dee7",
+  borderRadius: "8px",
+  boxShadow: "0 14px 28px rgba(15, 23, 42, 0.06)",
+} satisfies React.CSSProperties;
+
+const calendarGridStyle = {
+  display: "grid",
+  gridTemplateColumns: "repeat(7, minmax(0, 1fr))",
+  gap: "6px",
+} satisfies React.CSSProperties;
+
+const typeLabels = {
+  event: "Event",
+  tournament: "Tournament",
+  compliance: "Compliance",
+};
+
+function itemDate(value: string) {
+  return new Date(value).toLocaleDateString("en-ZA", {
+    day: "2-digit",
+    month: "short",
+  });
+}
+
+function itemTime(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime()) || value.length <= 10) return "";
+  return date.toLocaleTimeString("en-ZA", { hour: "2-digit", minute: "2-digit" });
+}
+
+function monthDays(baseDate: Date) {
+  const year = baseDate.getFullYear();
+  const month = baseDate.getMonth();
+  const firstDay = new Date(year, month, 1);
+  const lastDay = new Date(year, month + 1, 0);
+  const days = Array.from({ length: firstDay.getDay() }, () => null as Date | null);
+
+  for (let day = 1; day <= lastDay.getDate(); day += 1) {
+    days.push(new Date(year, month, day));
+  }
+
+  while (days.length % 7 !== 0) {
+    days.push(null);
+  }
+
+  return days;
+}
+
+function itemKeyForDay(value: string) {
+  const date = new Date(value);
+  return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+}
+
 export default function DashboardPage() {
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [calendarItems, setCalendarItems] = useState<CalendarItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -93,6 +173,16 @@ export default function DashboardPage() {
       }
 
       setProfile(payload.profile);
+
+      const calendarResponse = await fetch("/api/calendar", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (calendarResponse.ok) {
+        const calendarPayload = await calendarResponse.json();
+        setCalendarItems(calendarPayload.items ?? []);
+      }
+
       setLoading(false);
     }
 
@@ -108,6 +198,15 @@ export default function DashboardPage() {
   }
 
   const cards = cardSets[profile.role];
+  const today = new Date();
+  const days = monthDays(today);
+  const monthTitle = today.toLocaleDateString("en-ZA", { month: "long", year: "numeric" });
+  const itemsByDay = calendarItems.reduce<Record<string, CalendarItem[]>>((grouped, item) => {
+    const key = itemKeyForDay(item.date);
+    grouped[key] = [...(grouped[key] ?? []), item];
+    return grouped;
+  }, {});
+  const upcomingItems = calendarItems.slice(0, 8);
 
   return (
     <main className="app-page">
@@ -127,6 +226,91 @@ export default function DashboardPage() {
           <SignOutButton />
         </div>
       </header>
+      <section style={calendarShellStyle}>
+        <article style={calendarPanelStyle}>
+          <div>
+            <p className="eyebrow">Calendar</p>
+            <h2 style={{ margin: "4px 0 6px", fontSize: 24 }}>{monthTitle}</h2>
+            <p className="muted">Events, tournaments, and important compliance dates.</p>
+          </div>
+          <div style={calendarGridStyle}>
+            {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
+              <strong key={day} style={{ color: "#627084", fontSize: 12 }}>{day}</strong>
+            ))}
+            {days.map((day, index) => {
+              const key = day ? `${day.getFullYear()}-${day.getMonth()}-${day.getDate()}` : `empty-${index}`;
+              const dayItems = day ? itemsByDay[key] ?? [] : [];
+
+              return (
+                <div
+                  key={key}
+                  style={{
+                    minHeight: 88,
+                    padding: 8,
+                    background: day ? "#f8fafc" : "transparent",
+                    border: day ? "1px solid #d9dee7" : "1px solid transparent",
+                    borderRadius: 8,
+                  }}
+                >
+                  {day ? (
+                    <>
+                      <strong style={{ display: "block", marginBottom: 6 }}>{day.getDate()}</strong>
+                      <div style={{ display: "grid", gap: 4 }}>
+                        {dayItems.slice(0, 3).map((item) => (
+                          <Link
+                            href={item.href}
+                            key={`${item.type}-${item.id}`}
+                            style={{
+                              overflow: "hidden",
+                              padding: "3px 5px",
+                              borderRadius: 6,
+                              background: item.type === "compliance" ? "#fff4f2" : item.type === "tournament" ? "#eff6ff" : "#ecfdf3",
+                              color: item.type === "compliance" ? "#b42318" : item.type === "tournament" ? "#1d4ed8" : "#027a48",
+                              fontSize: 11,
+                              fontWeight: 800,
+                              textOverflow: "ellipsis",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            {item.title}
+                          </Link>
+                        ))}
+                        {dayItems.length > 3 ? <span className="small-note">+{dayItems.length - 3} more</span> : null}
+                      </div>
+                    </>
+                  ) : null}
+                </div>
+              );
+            })}
+          </div>
+        </article>
+        <aside style={calendarPanelStyle}>
+          <h2 style={{ margin: 0, fontSize: 22 }}>Upcoming</h2>
+          {upcomingItems.length === 0 ? (
+            <p className="muted">No upcoming calendar items yet.</p>
+          ) : (
+            <div style={{ display: "grid", gap: 10 }}>
+              {upcomingItems.map((item) => (
+                <Link
+                  className="list-row"
+                  href={item.href}
+                  key={`${item.type}-${item.id}`}
+                  style={{ gridTemplateColumns: "1fr", padding: 12 }}
+                >
+                  <div>
+                    <p className="eyebrow">{typeLabels[item.type]}</p>
+                    <h2 style={{ margin: "4px 0", fontSize: 16 }}>{item.title}</h2>
+                    <p className="muted">
+                      {itemDate(item.date)} {itemTime(item.date)} {item.location ? `| ${item.location}` : ""}
+                    </p>
+                    {item.owner ? <p className="small-note">{item.owner}</p> : null}
+                  </div>
+                </Link>
+              ))}
+            </div>
+          )}
+        </aside>
+      </section>
       <section className="card-grid">
         {cards.map((card) => (
           <article className="feature-card" key={card.title}>
