@@ -143,6 +143,7 @@ function itemKeyForDay(value: string) {
 export default function DashboardPage() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [calendarItems, setCalendarItems] = useState<CalendarItem[]>([]);
+  const [viewMonth, setViewMonth] = useState(() => new Date());
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -198,15 +199,22 @@ export default function DashboardPage() {
   }
 
   const cards = cardSets[profile.role];
-  const today = new Date();
-  const days = monthDays(today);
-  const monthTitle = today.toLocaleDateString("en-ZA", { month: "long", year: "numeric" });
+  const days = monthDays(viewMonth);
+  const monthTitle = viewMonth.toLocaleDateString("en-ZA", { month: "long", year: "numeric" });
   const itemsByDay = calendarItems.reduce<Record<string, CalendarItem[]>>((grouped, item) => {
     const key = itemKeyForDay(item.date);
     grouped[key] = [...(grouped[key] ?? []), item];
     return grouped;
   }, {});
   const upcomingItems = calendarItems.slice(0, 8);
+
+  function moveMonth(direction: number) {
+    setViewMonth((current) => new Date(current.getFullYear(), current.getMonth() + direction, 1));
+  }
+
+  function resetMonth() {
+    setViewMonth(new Date());
+  }
 
   return (
     <main className="app-page">
@@ -226,12 +234,36 @@ export default function DashboardPage() {
           <SignOutButton />
         </div>
       </header>
+      <section className="card-grid">
+        {cards.map((card) => (
+          <article className="feature-card" key={card.title}>
+            <h2>{card.title}</h2>
+            <p>{card.description}</p>
+            {card.href ? (
+              <Link className="text-link" href={card.href}>
+                Open
+              </Link>
+            ) : null}
+          </article>
+        ))}
+      </section>
+
+      <section className="section-title">
+        <h2>Calendar</h2>
+        <p>Events, tournaments, and important compliance dates.</p>
+      </section>
       <section style={calendarShellStyle}>
         <article style={calendarPanelStyle}>
-          <div>
-            <p className="eyebrow">Calendar</p>
-            <h2 style={{ margin: "4px 0 6px", fontSize: 24 }}>{monthTitle}</h2>
-            <p className="muted">Events, tournaments, and important compliance dates.</p>
+          <div className="row-actions" style={{ justifyContent: "space-between" }}>
+            <div>
+              <p className="eyebrow">Month view</p>
+              <h2 style={{ margin: "4px 0 6px", fontSize: 24 }}>{monthTitle}</h2>
+            </div>
+            <div className="row-actions">
+              <button className="secondary-button compact" onClick={() => moveMonth(-1)} type="button">Previous</button>
+              <button className="secondary-button compact" onClick={resetMonth} type="button">This month</button>
+              <button className="secondary-button compact" onClick={() => moveMonth(1)} type="button">Next</button>
+            </div>
           </div>
           <div style={calendarGridStyle}>
             {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
@@ -310,19 +342,6 @@ export default function DashboardPage() {
             </div>
           )}
         </aside>
-      </section>
-      <section className="card-grid">
-        {cards.map((card) => (
-          <article className="feature-card" key={card.title}>
-            <h2>{card.title}</h2>
-            <p>{card.description}</p>
-            {card.href ? (
-              <Link className="text-link" href={card.href}>
-                Open
-              </Link>
-            ) : null}
-          </article>
-        ))}
       </section>
     </main>
   );

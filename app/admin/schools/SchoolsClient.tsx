@@ -116,6 +116,7 @@ export default function SchoolsClient() {
   const [form, setForm] = useState(emptySchool);
   const [emailForm, setEmailForm] = useState(emptyEmail);
   const [emailSuccess, setEmailSuccess] = useState("");
+  const [emailOpen, setEmailOpen] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const formSectionRef = useRef<HTMLElement | null>(null);
@@ -279,25 +280,38 @@ export default function SchoolsClient() {
       </header>
 
       <section className="content-shell">
-        <form className="admin-form" onSubmit={sendSchoolEmail}>
-          <h2>Email schools</h2>
-          <p className="muted">
-            Send a direct email to {emailCount} school contact{emailCount === 1 ? "" : "s"} from the portal.
-          </p>
-          <label>
-            Subject
-            <input value={emailForm.subject} onChange={(event) => updateEmailField("subject", event.target.value)} required />
-          </label>
-          <label>
-            Message
-            <textarea className="order-summary-text" rows={6} value={emailForm.message} onChange={(event) => updateEmailField("message", event.target.value)} required />
-          </label>
-          {emailSuccess ? <p className="form-success">{emailSuccess}</p> : null}
-          {error ? <p className="form-error">{error}</p> : null}
-          <button className="primary-button compact" disabled={busy || emailCount === 0} type="submit">
-            Send email to schools
-          </button>
-        </form>
+        <section className="admin-form">
+          <div className="row-actions" style={{ justifyContent: "space-between" }}>
+            <div>
+              <h2>Email schools</h2>
+              <p className="muted">
+                Send a direct email to {emailCount} school contact{emailCount === 1 ? "" : "s"} from the portal.
+              </p>
+            </div>
+            <button className="secondary-button compact" onClick={() => setEmailOpen((current) => !current)} type="button">
+              {emailOpen ? "Hide email form" : "Open email form"}
+            </button>
+          </div>
+          {emailOpen ? (
+            <form className="stack-form" onSubmit={sendSchoolEmail}>
+              <label>
+                Subject
+                <input value={emailForm.subject} onChange={(event) => updateEmailField("subject", event.target.value)} required />
+              </label>
+              <label>
+                Message
+                <textarea className="order-summary-text" rows={6} value={emailForm.message} onChange={(event) => updateEmailField("message", event.target.value)} required />
+              </label>
+              {emailSuccess ? <p className="form-success">{emailSuccess}</p> : null}
+              {error ? <p className="form-error">{error}</p> : null}
+              <button className="primary-button compact" disabled={busy || emailCount === 0} type="submit">
+                Send email to schools
+              </button>
+            </form>
+          ) : emailSuccess ? (
+            <p className="form-success">{emailSuccess}</p>
+          ) : null}
+        </section>
       </section>
 
       <section className="content-shell table-list">
