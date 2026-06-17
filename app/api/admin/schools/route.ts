@@ -1,0 +1,163 @@
+import { requireAdmin } from "@/lib/server/requireAdmin";
+import { createSupabaseAdminClient } from "@/lib/supabaseAdmin";
+
+function cleanSchoolBody(body: Record<string, unknown> | null) {
+  return {
+    province_id: String(body?.province_id ?? "").trim(),
+    name: String(body?.name ?? "").trim(),
+    registration_number: String(body?.registration_number ?? "").trim() || null,
+    city: String(body?.city ?? "").trim() || null,
+    address: String(body?.address ?? "").trim() || null,
+    contact_email: String(body?.contact_email ?? "").trim() || null,
+    contact_phone: String(body?.contact_phone ?? "").trim() || null,
+    logo_url: String(body?.logo_url ?? "").trim() || null,
+    affiliation_status: String(body?.affiliation_status ?? "pending").trim() || "pending",
+  };
+}
+
+export async function GET(request: Request) {
+  const { user, response } = await requireAdmin(request);
+
+  if (!user) {
+    return response;
+  }
+
+  const supabase = createSupabaseAdminClient();
+  const [schoolsResult, provincesResult, studentsResult, requirementsResult, documentsResult, instructorsResult] = await Promise.all([
+    supabase
+      .from("schools")
+      .select("id,province_id,name,registration_number,city,address,contact_email,contact_phone,logo_url,affiliation_status,provinces(name,code)")
+      .order("name"),
+    supabase.from("provinces").select("id,name,code").order("name"),
+    supabase.from("students").select("id,school_id,date_of_birth,gender,race,membership_status"),
+    supabase
+      .from("compliance_requirements")
+      .select("id,applies_to,active")
+      .eq("active", true),
+    supabase
+      .from("compliance_documents")
+      .select("id,school_id,instructor_id,requirement_id,status,expires_at"),
+    supabase.from("instructors").select("id,school_id,active"),
+  ]);
+
+  if (schoolsResult.error) {
+    return Response.json({ error: schoolsResult.error.message }, { status: 400 });
+  }
+
+  if (provincesResult.error) {
+    return Response.json({ error: provincesResult.error.message }, { status: 400 });
+  }
+
+  if (studentsResult.error) {
+    return Response.json({ error: studentsResult.error.message }, { status: 400 });
+  }
+
+  if (requirementsResult.error) {
+    return Response.json({ error: requirementsResult.error.message }, { status: 400 });
+  }
+
+  if (documentsResult.error) {
+    return Response.json({ error: documentsResult.error.message }, { status: 400 });
+  }
+
+  if (instructorsResult.error) {
+    return Response.json({ error: instructorsResult.error.message }, { status: 400 });
+  }
+
+  const today = new Date();
+  const currentYear = today.getFullYear();
+  const schools = schoolsResult.data.map((school) => {
+    const students = studentsResult.data.filter((student) => student.school_id === school.id);
+    const documents = documentsResult.data.filter((document) => document.school_id === school.id);
+    const instructors = instructorsResult.data.filter((instructor) => instructor.school_id === school.id && instructor.active);
+    const requiredComplianceKeys = requirementsResult.data.flatMap((requirement) => {
+      if (requirement.applies_to === "instructor") {
+        return instructors.map((instructor) => `${requirement.id}:${instructor.id}`);
+      }
+
+      if (requirement.applies_to === "school") {
+        return [`${requirement.id}:school`];
+      }
+
+      return [];
+    });
+    const submittedRequirementIds = new Set(
+      documents
+        .filter((document) => {
+          if (!document.requirement_id) return false;
+          if (document.status === "rejected" || document.status === "expired") return false;
+          if (!document.expires_at) return true;
+          return new Date(document.expires_at) >= today;
+        })
+        .map((document) => `${document.requirement_id}:${document.instructor_id ?? "school"}`),
+    );
+    const raceCounts = students.reduce<Record<string, number>>((counts, student) => {
+      const race = student.race || "Not recorded";
+      counts[race] = (counts[race] ?? 0) + 1;
+      return counts;
+    }, {});
+    const ageCounts = students.reduce(
+      (counts, student) => {
+        if (!student.date_of_birth) return counts;
+        const age = currentYear - new Date(student.date_of_birth).getFullYear();
+        if (age >= 4 && age <= 6) counts.littleDragons += 1;
+        else if (age >= 7 && age <= 12) counts.karateKids += 1;
+        else if (age >= 13) counts.teensAdults += 1;
+        return counts;
+      },
+      { littleDragons: 0, karateKids: 0, teensAdults: 0 },
+    );
+
+    return {
+      ...school,
+      student_count: students.length,
+      male_student_count: students.filter((student) => student.gender === "male").length,
+      female_student_count: students.filter((student) => student.gender === "female").length,
+      little_dragons_count: ageCounts.littleDragons,
+      karate_kids_count: ageCounts.karateKids,
+      teens_adults_count: ageCounts.teensAdults,
+      race_counts: raceCounts,
+      instructor_count: instructors.length,
+      submitted_compliance_count: documents.length,
+      outstanding_compliance_count: requiredComplianceKeys.filter((key) => !submittedRequirementIds.has(key)).length,
+      expired_compliance_count: documents.filter((document) => {
+        if (document.status === "expired") return true;
+        if (!document.expires_at) return false;
+        return new Date(document.expires_at) < today;
+      }).length,
+    };
+  });
+
+  return Response.json({
+    schools,
+    provinces: provincesResult.data,
+  });
+}
+
+export async function POST(request: Request) {
+  const { user, response } = await requireAdmin(request);
+
+  if (!user) {
+    return response;
+  }
+
+  const body = await request.json().catch(() => null);
+  const school = cleanSchoolBody(body);
+
+  if (!school.province_id || !school.name) {
+    return Response.json({ error: "School name and province are required." }, { status: 400 });
+  }
+
+  const supabase = createSupabaseAdminClient();
+  const { data, error } = await supabase
+    .from("schools")
+    .insert(school)
+    .select("id,province_id,name,registration_number,city,address,contact_email,contact_phone,logo_url,affiliation_status,provinces(name,code)")
+    .single();
+
+  if (error) {
+    return Response.json({ error: error.message }, { status: 400 });
+  }
+
+  return Response.json({ school: data });
+}

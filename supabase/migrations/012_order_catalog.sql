@@ -1,0 +1,61 @@
+create table if not exists public.order_catalog_items (
+  id text primary key,
+  section text not null,
+  item text not null,
+  size text,
+  instructor_price numeric(12, 2),
+  student_price numeric(12, 2),
+  currency text not null default 'ZAR',
+  note text,
+  special_order boolean not null default false,
+  in_stock boolean not null default true,
+  active boolean not null default true,
+  sort_order integer not null default 0,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+alter table public.order_catalog_items enable row level security;
+
+insert into public.order_catalog_items
+  (id, section, item, size, instructor_price, student_price, currency, note, special_order, sort_order)
+values
+  ('white-100', 'White Uniforms', 'White uniform', '100 (0000)', 300, 350, 'ZAR', null, false, 10),
+  ('white-110', 'White Uniforms', 'White uniform', '110 (000)', 300, 350, 'ZAR', null, false, 20),
+  ('white-120', 'White Uniforms', 'White uniform', '120 (00)', 300, 350, 'ZAR', null, false, 30),
+  ('white-130', 'White Uniforms', 'White uniform', '130 (0)', 320, 370, 'ZAR', null, false, 40),
+  ('white-140', 'White Uniforms', 'White uniform', '140 (1)', 320, 370, 'ZAR', null, false, 50),
+  ('white-150', 'White Uniforms', 'White uniform', '150 (2)', 320, 370, 'ZAR', null, false, 60),
+  ('white-160', 'White Uniforms', 'White uniform', '160 (3)', 350, 400, 'ZAR', null, false, 70),
+  ('white-170', 'White Uniforms', 'White uniform', '170 (4)', 350, 400, 'ZAR', null, false, 80),
+  ('white-180', 'White Uniforms', 'White uniform', '180 (5)', 380, 430, 'ZAR', null, false, 90),
+  ('white-190', 'White Uniforms', 'White uniform', '190 (6)', 400, 450, 'ZAR', null, false, 100),
+  ('white-200', 'White Uniforms', 'White uniform', '200 (7)', 450, 500, 'ZAR', null, false, 110),
+  ('bb-140', 'Black Belt Uniforms', 'Black and white uniform, includes back', '140 (1)', 760, 810, 'ZAR', null, false, 120),
+  ('bb-150', 'Black Belt Uniforms', 'Black and white uniform, includes back', '150 (2)', 760, 810, 'ZAR', null, false, 130),
+  ('bb-160', 'Black Belt Uniforms', 'Black and white uniform, includes back', '160 (3)', 790, 840, 'ZAR', null, false, 140),
+  ('bb-170', 'Black Belt Uniforms', 'Black and white uniform, includes back', '170 (4)', 820, 870, 'ZAR', null, false, 150),
+  ('bb-180', 'Black Belt Uniforms', 'Black and white uniform, includes back', '180 (5)', 850, 900, 'ZAR', null, false, 160),
+  ('bb-190', 'Black Belt Uniforms', 'Black and white uniform, includes back', '190 (6)', 870, 920, 'ZAR', null, false, 170),
+  ('bb-200', 'Black Belt Uniforms', 'Black and white uniform, includes back', '200 (7)', null, null, 'ZAR', 'Special order', true, 180),
+  ('black-v-neck', 'Black V neck', 'Black V neck', '0000 - 200', 300, 450, 'ZAR', null, false, 190),
+  ('gloves', 'Sparring Gear', 'Gloves', null, 300, 410, 'ZAR', null, false, 200),
+  ('foot-protectors', 'Sparring Gear', 'Foot protectors', null, 300, 410, 'ZAR', null, false, 210),
+  ('head-guard', 'Sparring Gear', 'Head guard', null, 400, 510, 'ZAR', null, false, 220),
+  ('chest-guard', 'Sparring Gear', 'Chest guard', null, 450, 550, 'ZAR', null, false, 230),
+  ('shield', 'Sparring Gear', 'Shield', null, 300, 410, 'ZAR', null, false, 240),
+  ('combat-gloves', 'Sparring Gear', 'Combat Gloves', null, 200, 250, 'ZAR', null, false, 250),
+  ('combat-weapon', 'Sparring Gear', 'Combat Weapon', null, 300, 400, 'ZAR', null, false, 260),
+  ('groin-guards', 'Sparring Gear', 'Groin Guards', null, 200, 250, 'ZAR', null, false, 270),
+  ('combat-swords', 'Sparring Gear', 'Combat Swords', null, 450, 550, 'ZAR', null, false, 280),
+  ('mountain-patch', 'Patches', 'Blackbelt uniform mountain patch', null, null, null, 'ZAR', 'Price to be confirmed', true, 290),
+  ('southern-patch', 'Patches', 'NMAA Southern Hemisphere Patch', null, 5, null, 'USD', 'Ordered directly from NMAA Merchandise. Shipping to be added.', false, 300),
+  ('judge-patch', 'Patches', 'Judge Patches', null, 5, null, 'USD', 'Ordered directly from NMAA Merchandise. Shipping to be added.', false, 310),
+  ('nxt-patches', 'Patches', 'NXT Patches and collars', null, null, null, 'USD', 'Must be ordered directly from NMAA Instruction Department. Shipping to be added.', true, 320),
+  ('back-color-belts', 'Back of Uniform', 'Color belts', null, 250, 300, 'ZAR', null, false, 330),
+  ('back-black-belts', 'Back of Uniform', 'Black belts', null, 500, 600, 'ZAR', null, false, 340),
+  ('belt-white-red', 'Belts', 'White - Red (excl. camo)', null, 50, null, 'ZAR', null, false, 350),
+  ('belt-camo', 'Belts', 'Camo', null, 70, null, 'ZAR', null, false, 360),
+  ('belt-recommended-red', 'Belts', 'Recommended Red', null, 70, null, 'ZAR', null, false, 370),
+  ('custom-black-belt', 'Belts', 'Custom Black Belt', null, 650, 800, 'ZAR', 'Subject to change depending on order and exchange rate.', false, 380)
+on conflict (id) do nothing;
