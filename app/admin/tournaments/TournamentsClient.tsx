@@ -277,6 +277,62 @@ export default function TournamentsClient() {
     );
   }
 
+  async function importLegacyEntries() {
+    setBusy(true);
+    setError("");
+    setSyncMessage("");
+
+    const response = await fetch("/api/admin/legacy-portal-sync/entries", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const payload = await response.json();
+    setBusy(false);
+
+    if (!response.ok) {
+      setError(payload.error ?? "Unable to import Legacy entries.");
+      return;
+    }
+
+    const imported = payload.result?.imported;
+    const skipped = payload.result?.skipped;
+    setSyncMessage(
+      `Legacy entries imported: ${imported?.entries ?? 0} entries and ${
+        imported?.students ?? 0
+      } student records. Skipped ${skipped?.entries ?? 0}.`
+    );
+    await loadTournaments(token);
+  }
+
+  async function importLegacyMembers() {
+    setBusy(true);
+    setError("");
+    setSyncMessage("");
+
+    const response = await fetch("/api/admin/legacy-portal-sync/members", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const payload = await response.json();
+    setBusy(false);
+
+    if (!response.ok) {
+      setError(payload.error ?? "Unable to import Legacy members.");
+      return;
+    }
+
+    const imported = payload.result?.imported;
+    const skipped = payload.result?.skipped;
+    setSyncMessage(
+      `Legacy members imported: ${imported?.students ?? 0} students and ${
+        imported?.instructors ?? 0
+      } instructors. Skipped ${skipped?.students ?? 0} students and ${
+        skipped?.instructors ?? 0
+      } instructors.`
+    );
+    await loadTournaments(token);
+  }
+
   return (
     <main className="app-page">
       <header className="page-header">
@@ -289,6 +345,12 @@ export default function TournamentsClient() {
         <div className="row-actions">
           <button className="secondary-button compact" disabled={busy || !token} onClick={syncLegacyPortal} type="button">
             Sync Legacy Portal
+          </button>
+          <button className="secondary-button compact" disabled={busy || !token} onClick={importLegacyEntries} type="button">
+            Import Legacy Entries
+          </button>
+          <button className="secondary-button compact" disabled={busy || !token} onClick={importLegacyMembers} type="button">
+            Import Legacy Members
           </button>
           <Link className="secondary-button compact" href="/dashboard">Dashboard</Link>
           <SignOutButton />
