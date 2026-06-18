@@ -254,10 +254,18 @@ async function fetchLegacyCalendar() {
   return (json ?? {}) as LegacyCalendarPayload;
 }
 
-async function fetchLegacyCompetitionEntries(externalCompetitionId: string) {
+async function fetchLegacyCompetitionEntries(params: {
+  externalCompetitionId?: string;
+  legacyCompetitionId?: string;
+}) {
   const url = new URL(`${legacyPortalUrl()}/api/integrations/organisation/competition-entries`);
-  url.searchParams.set("source", "nmaa-portal");
-  url.searchParams.set("external_competition_id", externalCompetitionId);
+
+  if (params.legacyCompetitionId) {
+    url.searchParams.set("competition_id", params.legacyCompetitionId);
+  } else if (params.externalCompetitionId) {
+    url.searchParams.set("source", "nmaa-portal");
+    url.searchParams.set("external_competition_id", params.externalCompetitionId);
+  }
 
   const response = await fetch(url, {
     headers: {
@@ -403,11 +411,14 @@ export async function importLegacyPortalTournamentEntries() {
   const syncedAt = new Date().toISOString();
 
   for (const tournament of (tournaments ?? []) as Array<TournamentRow & { external_source?: string | null; external_tournament_id?: string | null }>) {
-    const legacyCompetitionId =
+    const entries =
       tournament.external_source === "legacy-portal" && tournament.external_tournament_id
-        ? tournament.external_tournament_id
-        : tournament.id;
-    const entries = await fetchLegacyCompetitionEntries(legacyCompetitionId);
+        ? await fetchLegacyCompetitionEntries({
+            legacyCompetitionId: tournament.external_tournament_id,
+          })
+        : await fetchLegacyCompetitionEntries({
+            externalCompetitionId: tournament.id,
+          });
 
     if (entries === null) {
       skippedCompetitions += 1;
