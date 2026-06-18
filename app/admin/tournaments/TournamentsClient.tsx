@@ -493,7 +493,7 @@ export default function TournamentsClient() {
               <dl className="detail-grid">
                 <div><dt>Tournament</dt><dd>{entry.tournaments?.name ?? "Tournament"}</dd></div>
                 <div><dt>Category</dt><dd>{entry.category ?? "No category"}</dd></div>
-                <div><dt>Result</dt><dd>{entry.medal || entry.result_label || "Entered"}</dd></div>
+                <div><dt>Result</dt><dd>{entry.result_label || entry.medal || "Entered"}</dd></div>
                 <div><dt>Points</dt><dd>{entry.points ?? 0}</dd></div>
               </dl>
             </div>

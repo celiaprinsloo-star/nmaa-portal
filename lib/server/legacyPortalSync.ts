@@ -63,6 +63,8 @@ type LegacyEntry = {
   student_belt_level: string | null;
   category: string | null;
   status: string | null;
+  placement: string | null;
+  result_score: number | null;
 };
 
 type LegacyStudent = {
@@ -163,6 +165,28 @@ function normalizeLegacyCategory(category: string | null) {
   if (normalized.includes("sword")) return "Sword Sparring";
 
   return category || null;
+}
+
+function normalizeLegacyPlacement(placement: string | null) {
+  const normalized = String(placement ?? "").trim().toLowerCase();
+
+  if (normalized === "1st" || normalized === "first" || normalized === "gold") {
+    return { medal: "gold", label: "1st", points: 10 };
+  }
+
+  if (normalized === "2nd" || normalized === "second" || normalized === "silver") {
+    return { medal: "silver", label: "2nd", points: 8 };
+  }
+
+  if (normalized === "3rd" || normalized === "third" || normalized === "bronze") {
+    return { medal: "bronze", label: "3rd", points: 5 };
+  }
+
+  if (normalized === "participant" || normalized === "participation") {
+    return { medal: "participation", label: "Participant", points: 2 };
+  }
+
+  return { medal: null, label: null, points: null };
 }
 
 function normalizeMembershipStatus(status: string | null) {
@@ -463,17 +487,26 @@ export async function importLegacyPortalTournamentEntries() {
       importedStudents += 1;
 
       const { error: entryError } = await supabase.from("tournament_entries").upsert(
-        {
-          tournament_id: tournament.id,
-          student_id: student.id,
-          school_id: schoolId,
-          category: normalizeLegacyCategory(entry.category),
-          status: entry.status === "approved" ? "entered" : entry.status || "pending",
-          external_source: "legacy-portal",
-          external_entry_id: entry.id,
-          external_synced_at: syncedAt,
-          external_sync_error: null,
-        },
+        (() => {
+          const placement = normalizeLegacyPlacement(entry.placement);
+          const score = Number(entry.result_score);
+          const points = Number.isFinite(score) && score > 0 ? score : placement.points;
+
+          return {
+            tournament_id: tournament.id,
+            student_id: student.id,
+            school_id: schoolId,
+            category: normalizeLegacyCategory(entry.category),
+            result_label: placement.label,
+            medal: placement.medal,
+            points,
+            status: entry.status === "approved" ? "entered" : entry.status || "pending",
+            external_source: "legacy-portal",
+            external_entry_id: entry.id,
+            external_synced_at: syncedAt,
+            external_sync_error: null,
+          };
+        })(),
         { onConflict: "external_source,external_entry_id" }
       );
 
