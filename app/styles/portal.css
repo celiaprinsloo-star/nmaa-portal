@@ -364,7 +364,6 @@ label {
   width: min(1180px, 100%);
   margin: 0 auto;
   display: grid;
-  grid-template-columns: minmax(280px, 380px) 1fr;
   gap: 18px;
   align-items: start;
 }
@@ -377,15 +376,35 @@ label {
 
 .two-column-workspace {
   display: grid;
-  grid-template-columns: repeat(2, minmax(280px, 1fr));
   gap: 18px;
   align-items: start;
 }
 
 .admin-form {
   display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 14px;
   padding: 18px;
+}
+
+.admin-form > h2,
+.admin-form > p,
+.admin-form > .button-row,
+.admin-form > .form-error,
+.admin-form > .form-success,
+.admin-form > .small-note,
+.admin-form > .muted,
+.admin-form > .logo-upload-block {
+  grid-column: 1 / -1;
+}
+
+.admin-form > label:has(textarea),
+.admin-form > label:has(input[type="file"]) {
+  grid-column: 1 / -1;
+}
+
+.admin-form .checkbox-label {
+  width: auto;
 }
 
 .admin-form h2 {
@@ -1172,6 +1191,10 @@ label {
   align-items: center;
 }
 
+.spread-actions {
+  justify-content: space-between;
+}
+
 .section-title {
   padding: 0 4px;
 }
@@ -1211,6 +1234,65 @@ label {
 
 .school-metric {
   min-height: 112px;
+}
+
+.event-card-grid {
+  width: min(1200px, 100%);
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 16px;
+  align-items: stretch;
+}
+
+.event-card {
+  display: grid;
+  gap: 16px;
+  padding: 20px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-top: 4px solid var(--accent);
+  border-radius: 8px;
+  box-shadow: var(--shadow-card);
+}
+
+.event-card h2,
+.event-card p {
+  margin: 0;
+}
+
+.event-card h2 {
+  margin-top: 4px;
+  color: #111827;
+  font-size: 22px;
+}
+
+.event-mini-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.event-mini-card {
+  display: grid;
+  gap: 4px;
+  min-height: 74px;
+  padding: 12px;
+  background: var(--panel-soft);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.event-mini-card strong {
+  color: #111827;
+  line-height: 1.25;
+}
+
+.event-mini-card small {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
 }
 
 .shop-product-card,

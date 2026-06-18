@@ -40,43 +40,6 @@ function displayDate(value: string) {
   });
 }
 
-const shellStyle = {
-  width: "min(1280px, 100%)",
-  margin: "0 auto",
-} as const;
-
-const cardGridStyle = {
-  display: "grid",
-  gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
-  gap: "14px",
-  alignItems: "stretch",
-} as const;
-
-const eventCardStyle = {
-  display: "grid",
-  gap: "14px",
-  padding: "18px",
-  background: "#fff",
-  border: "1px solid #d9dee7",
-  borderRadius: "8px",
-  boxShadow: "0 14px 28px rgba(15, 23, 42, 0.08)",
-} as const;
-
-const miniGridStyle = {
-  display: "grid",
-  gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-  gap: "10px",
-} as const;
-
-const miniCardStyle = {
-  display: "grid",
-  gap: "4px",
-  padding: "12px",
-  background: "#f8fafc",
-  border: "1px solid #d9dee7",
-  borderRadius: "8px",
-} as const;
-
 export default function EventsAdminClient() {
   const [token, setToken] = useState("");
   const [events, setEvents] = useState<PortalEvent[]>([]);
@@ -218,7 +181,7 @@ export default function EventsAdminClient() {
         </div>
       </header>
 
-      {error ? <section style={shellStyle}><p className="form-error">{error}</p></section> : null}
+      {error ? <section className="content-shell"><p className="form-error">{error}</p></section> : null}
 
       <section className="two-column-workspace">
         <form className="admin-form" id="event-form" onSubmit={saveEvent}>
@@ -315,28 +278,28 @@ export default function EventsAdminClient() {
         <h2>Manage events</h2>
         <p>Each card shows the event scope, timing, and attendee count.</p>
       </section>
-      <section style={{ ...shellStyle, ...cardGridStyle }}>
+      <section className="event-card-grid">
         {events.length === 0 ? (
           <article className="empty-state">No events created yet.</article>
         ) : (
           events.map((eventItem) => {
             const eventBookings = bookingsByEvent[eventItem.id] ?? [];
             return (
-              <article key={eventItem.id} style={eventCardStyle}>
+              <article className="event-card" key={eventItem.id}>
                 <div>
                   <p className="eyebrow">{eventItem.event_type}</p>
-                  <h2 style={{ margin: "4px 0 6px", fontSize: 22 }}>{eventItem.title}</h2>
+                  <h2>{eventItem.title}</h2>
                   <p className="muted">{eventItem.description || "No notes added."}</p>
                 </div>
-                <div style={miniGridStyle}>
-                  <span style={miniCardStyle}><strong>{displayDate(eventItem.starts_at)}</strong><small>Starts</small></span>
-                  <span style={miniCardStyle}><strong>{eventItem.venue || "No venue"}</strong><small>Venue</small></span>
-                  <span style={miniCardStyle}><strong>{eventItem.provinces?.name ?? "National"}</strong><small>Province</small></span>
-                  <span style={miniCardStyle}><strong>{eventItem.schools?.name ?? "All schools"}</strong><small>School</small></span>
-                  <span style={miniCardStyle}><strong>{eventBookings.length}</strong><small>Attendees</small></span>
-                  <span style={miniCardStyle}><strong>{eventItem.capacity ?? "No limit"}</strong><small>Capacity</small></span>
+                <div className="event-mini-grid">
+                  <span className="event-mini-card"><strong>{displayDate(eventItem.starts_at)}</strong><small>Starts</small></span>
+                  <span className="event-mini-card"><strong>{eventItem.venue || "No venue"}</strong><small>Venue</small></span>
+                  <span className="event-mini-card"><strong>{eventItem.provinces?.name ?? "National"}</strong><small>Province</small></span>
+                  <span className="event-mini-card"><strong>{eventItem.schools?.name ?? "All schools"}</strong><small>School</small></span>
+                  <span className="event-mini-card"><strong>{eventBookings.length}</strong><small>Attendees</small></span>
+                  <span className="event-mini-card"><strong>{eventItem.capacity ?? "No limit"}</strong><small>Capacity</small></span>
                 </div>
-                <div className="row-actions" style={{ justifyContent: "space-between" }}>
+                <div className="row-actions spread-actions">
                   <span className={`status-pill status-${eventItem.status}`}>{eventItem.status}</span>
                   <span className="row-actions">
                     <button className="secondary-button compact" onClick={() => editEvent(eventItem)} type="button">Edit</button>
