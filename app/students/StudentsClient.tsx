@@ -9,14 +9,18 @@ import type { School, Student } from "@/lib/types";
 
 const beltRanks = [
   "White",
+  "Orange",
   "Yellow",
   "Green",
+  "Purple",
   "Blue",
+  "Brown",
   "Red",
-  "Black 1st Dan",
-  "Black 2nd Dan",
-  "Black 3rd Dan",
-  "Black 4th Dan",
+  "Rec Black",
+  "Black 1st Deg",
+  "Black 2nd Deg",
+  "Black 3rd Deg",
+  "Black 4th Deg",
 ];
 
 const emptyStudent = {
