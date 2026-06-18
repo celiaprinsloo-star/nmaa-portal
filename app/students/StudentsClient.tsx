@@ -256,18 +256,24 @@ export default function StudentsClient() {
     setBusy(false);
 
     if (!response.ok) {
-      setError(payload.error ?? "Unable to import Legacy members.");
+      const details = Array.isArray(payload.result?.errors)
+        ? ` ${payload.result.errors.join(" ")}`
+        : "";
+      setError(`${payload.error ?? "Unable to import Legacy members."}${details}`);
       return;
     }
 
     const imported = payload.result?.imported;
     const skipped = payload.result?.skipped;
+    const reasons = Array.isArray(payload.result?.errors)
+      ? ` ${payload.result.errors.join(" ")}`
+      : "";
     setSyncMessage(
       `Legacy members imported: ${imported?.students ?? 0} students and ${
         imported?.instructors ?? 0
       } instructors. Skipped ${skipped?.students ?? 0} students and ${
         skipped?.instructors ?? 0
-      } instructors.`
+      } instructors.${reasons}`
     );
     await loadStudents(token);
   }

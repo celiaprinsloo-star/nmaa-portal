@@ -179,6 +179,22 @@ function normalizeCollarLevel(collar: string | null) {
   return normalized || null;
 }
 
+function normalizeTextForMatch(value: string | null | undefined) {
+  return String(value ?? "").trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+function dateForMatch(value: string | null | undefined) {
+  return value ? value.slice(0, 10) : "";
+}
+
+function tournamentNaturalKey(tournament: Pick<TournamentRow, "name" | "venue" | "starts_at">) {
+  return [
+    normalizeTextForMatch(tournament.name),
+    normalizeTextForMatch(tournament.venue),
+    dateForMatch(tournament.starts_at),
+  ].join("|");
+}
+
 async function sendToLegacyPortal(payload: unknown) {
   const response = await fetch(schoolPortalSyncUrl(), {
     method: "POST",
@@ -332,11 +348,14 @@ export async function syncLegacyPortalCalendar() {
 
   const tournaments = (tournamentsResult.data ?? []) as TournamentRow[];
   const events = (eventsResult.data ?? []) as EventRow[];
+  const uniqueTournaments = Array.from(
+    new Map(tournaments.map((tournament) => [tournamentNaturalKey(tournament), tournament])).values()
+  );
 
   return sendToLegacyPortal({
     source: "nmaa-portal",
     organization_name: "NMAA",
-    competitions: tournaments.map((tournament) => ({
+    competitions: uniqueTournaments.map((tournament) => ({
       external_id: tournament.id,
       name: tournament.name,
       comp_date: dateOnly(tournament.starts_at),
@@ -465,18 +484,64 @@ export async function importLegacyPortalCalendar() {
   const competitions = payload.competitions ?? [];
   const events = payload.events ?? [];
 
-  const competitionRows = competitions
-    .filter((competition) => competition.id && competition.name && competition.comp_date)
-    .map((competition) => ({
-      name: competition.name || "Legacy competition",
-      venue: competition.location,
-      starts_at: competition.comp_date,
+  let importedTournaments = 0;
+  let skippedTournaments = 0;
+
+  const validCompetitions = competitions.filter(
+    (competition) => competition.id && competition.name && competition.comp_date
+  );
+
+  const { data: existingTournamentRows, error: existingTournamentError } = await supabase
+    .from("tournaments")
+    .select("id,name,venue,starts_at,external_source,external_tournament_id");
+
+  if (existingTournamentError) {
+    throw new Error(existingTournamentError.message);
+  }
+
+  const existingTournaments = existingTournamentRows ?? [];
+
+  for (const competition of validCompetitions) {
+    const name = competition.name || "Legacy competition";
+    const date = competition.comp_date || "";
+    const venue = competition.location || null;
+
+    const exactExternalMatch = existingTournaments.find(
+      (tournament) =>
+        tournament.external_source === "legacy-portal" &&
+        tournament.external_tournament_id === competition.id
+    );
+    const naturalMatch = existingTournaments.find(
+      (tournament) =>
+        !tournament.external_tournament_id &&
+        normalizeTextForMatch(tournament.name) === normalizeTextForMatch(name) &&
+        dateForMatch(tournament.starts_at) === dateForMatch(date) &&
+        normalizeTextForMatch(tournament.venue) === normalizeTextForMatch(venue)
+    );
+
+    const matchedId = exactExternalMatch?.id ?? naturalMatch?.id ?? null;
+    const row = {
+      name,
+      venue,
+      starts_at: date,
       ends_at: null,
       registration_closes_at: null,
       external_source: "legacy-portal",
       external_tournament_id: competition.id,
       external_synced_at: syncedAt,
-    }));
+    };
+
+    const result = matchedId
+      ? await supabase.from("tournaments").update(row).eq("id", matchedId)
+      : await supabase.from("tournaments").insert(row);
+
+    if (result.error) {
+      skippedTournaments += 1;
+      continue;
+    }
+
+    importedTournaments += 1;
+  }
 
   const eventRows = events
     .filter((event) => event.id && event.title && event.event_date)
@@ -494,16 +559,6 @@ export async function importLegacyPortalCalendar() {
       external_synced_at: syncedAt,
     }));
 
-  if (competitionRows.length > 0) {
-    const { error } = await supabase
-      .from("tournaments")
-      .upsert(competitionRows, { onConflict: "external_source,external_tournament_id" });
-
-    if (error) {
-      throw new Error(error.message);
-    }
-  }
-
   if (eventRows.length > 0) {
     const { error } = await supabase
       .from("events")
@@ -516,11 +571,11 @@ export async function importLegacyPortalCalendar() {
 
   return {
     imported: {
-      tournaments: competitionRows.length,
+      tournaments: importedTournaments,
       events: eventRows.length,
     },
     skipped: {
-      tournaments: competitions.length - competitionRows.length,
+      tournaments: competitions.length - validCompetitions.length + skippedTournaments,
       events: events.length - eventRows.length,
     },
   };
@@ -536,11 +591,13 @@ export async function importLegacyPortalMembers() {
   let importedInstructors = 0;
   let skippedStudents = 0;
   let skippedInstructors = 0;
+  const errors: string[] = [];
   const studentIdMap = new Map<string, string>();
 
   for (const student of payload.students ?? []) {
     if (!student.id) {
       skippedStudents += 1;
+      if (errors.length < 5) errors.push("Student skipped: missing Legacy student ID.");
       continue;
     }
 
@@ -548,14 +605,23 @@ export async function importLegacyPortalMembers() {
       const nmaaStudentId = await upsertLegacyStudent(schoolId, student);
       studentIdMap.set(student.id, nmaaStudentId);
       importedStudents += 1;
-    } catch {
+    } catch (error) {
       skippedStudents += 1;
+      if (errors.length < 5) {
+        const name = `${student.first_name ?? ""} ${student.last_name ?? ""}`.trim() || student.id;
+        errors.push(
+          `Student skipped (${name}): ${
+            error instanceof Error ? error.message : "Unknown database error."
+          }`
+        );
+      }
     }
   }
 
   for (const instructor of payload.instructors ?? []) {
     if (!instructor.id) {
       skippedInstructors += 1;
+      if (errors.length < 5) errors.push("Instructor skipped: missing Legacy instructor ID.");
       continue;
     }
 
@@ -568,6 +634,13 @@ export async function importLegacyPortalMembers() {
 
     if (studentLookupError) {
       skippedInstructors += 1;
+      if (errors.length < 5) {
+        errors.push(
+          `Instructor skipped (${instructor.full_name ?? instructor.id}): ${
+            studentLookupError.message
+          }`
+        );
+      }
       continue;
     }
 
@@ -613,6 +686,13 @@ export async function importLegacyPortalMembers() {
 
       if (fallback.error) {
         skippedInstructors += 1;
+        if (errors.length < 5) {
+          errors.push(
+            `Instructor skipped (${instructor.full_name ?? instructor.id}): ${
+              fallback.error.message
+            }`
+          );
+        }
         continue;
       }
     }
@@ -629,5 +709,6 @@ export async function importLegacyPortalMembers() {
       students: skippedStudents,
       instructors: skippedInstructors,
     },
+    errors,
   };
 }
