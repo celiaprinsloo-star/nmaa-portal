@@ -304,12 +304,12 @@ export default function TournamentsClient() {
     await loadTournaments(token);
   }
 
-  async function importLegacyMembers() {
+  async function importLegacyTournaments() {
     setBusy(true);
     setError("");
     setSyncMessage("");
 
-    const response = await fetch("/api/admin/legacy-portal-sync/members", {
+    const response = await fetch("/api/admin/legacy-portal-sync/calendar", {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
     });
@@ -317,18 +317,18 @@ export default function TournamentsClient() {
     setBusy(false);
 
     if (!response.ok) {
-      setError(payload.error ?? "Unable to import Legacy members.");
+      setError(payload.error ?? "Unable to import Legacy tournaments.");
       return;
     }
 
     const imported = payload.result?.imported;
     const skipped = payload.result?.skipped;
     setSyncMessage(
-      `Legacy members imported: ${imported?.students ?? 0} students and ${
-        imported?.instructors ?? 0
-      } instructors. Skipped ${skipped?.students ?? 0} students and ${
-        skipped?.instructors ?? 0
-      } instructors.`
+      `Legacy calendar imported: ${imported?.tournaments ?? 0} tournaments and ${
+        imported?.events ?? 0
+      } events. Skipped ${skipped?.tournaments ?? 0} tournaments and ${
+        skipped?.events ?? 0
+      } events.`
     );
     await loadTournaments(token);
   }
@@ -346,11 +346,11 @@ export default function TournamentsClient() {
           <button className="secondary-button compact" disabled={busy || !token} onClick={syncLegacyPortal} type="button">
             Sync Legacy Portal
           </button>
+          <button className="secondary-button compact" disabled={busy || !token} onClick={importLegacyTournaments} type="button">
+            Import Legacy Tournaments
+          </button>
           <button className="secondary-button compact" disabled={busy || !token} onClick={importLegacyEntries} type="button">
             Import Legacy Entries
-          </button>
-          <button className="secondary-button compact" disabled={busy || !token} onClick={importLegacyMembers} type="button">
-            Import Legacy Members
           </button>
           <Link className="secondary-button compact" href="/dashboard">Dashboard</Link>
           <SignOutButton />

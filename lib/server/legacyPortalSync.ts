@@ -23,6 +23,31 @@ type EventRow = {
   status: string | null;
 };
 
+type LegacyCompetition = {
+  id: string;
+  name: string | null;
+  comp_date: string | null;
+  location: string | null;
+  notes: string | null;
+};
+
+type LegacyEvent = {
+  id: string;
+  title: string | null;
+  event_date: string | null;
+  start_time: string | null;
+  end_time: string | null;
+  location: string | null;
+  capacity: number | null;
+  notes: string | null;
+  status: string | null;
+};
+
+type LegacyCalendarPayload = {
+  competitions?: LegacyCompetition[];
+  events?: LegacyEvent[];
+};
+
 type SchoolRow = {
   id: string;
   name: string;
@@ -183,10 +208,34 @@ async function fetchLegacyMembers() {
   const json = (await response.json().catch(() => null)) as LegacyMembersPayload | { error?: string } | null;
 
   if (!response.ok) {
+    if (response.status === 404) {
+      throw new Error("Legacy members endpoint was not found. Redeploy the Legacy/student portal first.");
+    }
+
     throw new Error(json && "error" in json ? json.error || "Legacy members fetch failed." : `Legacy members fetch failed (${response.status}).`);
   }
 
   return (json ?? {}) as LegacyMembersPayload;
+}
+
+async function fetchLegacyCalendar() {
+  const response = await fetch(`${legacyPortalUrl()}/api/integrations/organisation/sync`, {
+    headers: {
+      "x-integration-secret": integrationSecret(),
+    },
+  });
+
+  const json = (await response.json().catch(() => null)) as LegacyCalendarPayload | { error?: string } | null;
+
+  if (!response.ok) {
+    if (response.status === 404) {
+      throw new Error("Legacy calendar endpoint was not found. Redeploy the Legacy/student portal first.");
+    }
+
+    throw new Error(json && "error" in json ? json.error || "Legacy calendar fetch failed." : `Legacy calendar fetch failed (${response.status}).`);
+  }
+
+  return (json ?? {}) as LegacyCalendarPayload;
 }
 
 async function fetchLegacyCompetitionEntries(externalCompetitionId: string) {
@@ -313,10 +362,11 @@ export async function syncLegacyPortalCalendar() {
 export async function importLegacyPortalTournamentEntries() {
   const supabase = createSupabaseAdminClient();
   const schoolId = await legacySchoolId();
+  await importLegacyPortalCalendar();
 
   const { data: tournaments, error } = await supabase
     .from("tournaments")
-    .select("id,name,venue,starts_at,ends_at,registration_closes_at")
+    .select("id,name,venue,starts_at,ends_at,registration_closes_at,external_source,external_tournament_id")
     .order("starts_at", { ascending: true });
 
   if (error) {
@@ -328,8 +378,12 @@ export async function importLegacyPortalTournamentEntries() {
   let skippedEntries = 0;
   const syncedAt = new Date().toISOString();
 
-  for (const tournament of (tournaments ?? []) as TournamentRow[]) {
-    const entries = await fetchLegacyCompetitionEntries(tournament.id);
+  for (const tournament of (tournaments ?? []) as Array<TournamentRow & { external_source?: string | null; external_tournament_id?: string | null }>) {
+    const legacyCompetitionId =
+      tournament.external_source === "legacy-portal" && tournament.external_tournament_id
+        ? tournament.external_tournament_id
+        : tournament.id;
+    const entries = await fetchLegacyCompetitionEntries(legacyCompetitionId);
 
     for (const entry of entries) {
       if (!entry.id || !entry.student_id) {
@@ -399,6 +453,75 @@ export async function importLegacyPortalTournamentEntries() {
     },
     skipped: {
       entries: skippedEntries,
+    },
+  };
+}
+
+export async function importLegacyPortalCalendar() {
+  const supabase = createSupabaseAdminClient();
+  const payload = await fetchLegacyCalendar();
+  const syncedAt = new Date().toISOString();
+
+  const competitions = payload.competitions ?? [];
+  const events = payload.events ?? [];
+
+  const competitionRows = competitions
+    .filter((competition) => competition.id && competition.name && competition.comp_date)
+    .map((competition) => ({
+      name: competition.name || "Legacy competition",
+      venue: competition.location,
+      starts_at: competition.comp_date,
+      ends_at: null,
+      registration_closes_at: null,
+      external_source: "legacy-portal",
+      external_tournament_id: competition.id,
+      external_synced_at: syncedAt,
+    }));
+
+  const eventRows = events
+    .filter((event) => event.id && event.title && event.event_date)
+    .map((event) => ({
+      title: event.title || "Legacy event",
+      event_type: "legacy",
+      description: event.notes,
+      venue: event.location,
+      starts_at: event.start_time ? `${event.event_date}T${event.start_time}` : event.event_date,
+      ends_at: event.end_time ? `${event.event_date}T${event.end_time}` : null,
+      capacity: event.capacity,
+      status: event.status === "cancelled" ? "cancelled" : "open",
+      external_source: "legacy-portal",
+      external_event_id: event.id,
+      external_synced_at: syncedAt,
+    }));
+
+  if (competitionRows.length > 0) {
+    const { error } = await supabase
+      .from("tournaments")
+      .upsert(competitionRows, { onConflict: "external_source,external_tournament_id" });
+
+    if (error) {
+      throw new Error(error.message);
+    }
+  }
+
+  if (eventRows.length > 0) {
+    const { error } = await supabase
+      .from("events")
+      .upsert(eventRows, { onConflict: "external_source,external_event_id" });
+
+    if (error) {
+      throw new Error(error.message);
+    }
+  }
+
+  return {
+    imported: {
+      tournaments: competitionRows.length,
+      events: eventRows.length,
+    },
+    skipped: {
+      tournaments: competitions.length - competitionRows.length,
+      events: events.length - eventRows.length,
     },
   };
 }
