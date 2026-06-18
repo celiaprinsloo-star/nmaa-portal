@@ -1,5 +1,6 @@
 import { canAccessSchool, requireApprovedUser } from "@/lib/server/access";
 import { createSupabaseAdminClient } from "@/lib/supabaseAdmin";
+import { normalizeTournamentCategory, normalizeTournamentResult, tournamentPointsForResult } from "@/lib/tournamentRules";
 
 type EntryRouteContext = {
   params: Promise<{ id: string }>;
@@ -10,11 +11,11 @@ function cleanEntryBody(body: Record<string, unknown> | null) {
     tournament_id: String(body?.tournament_id ?? "").trim(),
     student_id: String(body?.student_id ?? "").trim(),
     school_id: String(body?.school_id ?? "").trim(),
-    category: String(body?.category ?? "").trim() || null,
+    category: normalizeTournamentCategory(String(body?.category ?? "")) || null,
     placement: body?.placement ? Number(body.placement) : null,
     result_label: String(body?.result_label ?? "").trim() || null,
-    medal: String(body?.medal ?? "").trim() || null,
-    points: body?.points ? Number(body.points) : null,
+    medal: normalizeTournamentResult(String(body?.medal ?? body?.result ?? "")),
+    points: tournamentPointsForResult(String(body?.medal ?? body?.result ?? "")),
     status: String(body?.status ?? "entered").trim() || "entered",
   };
 }

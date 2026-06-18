@@ -5,6 +5,7 @@ import { FormEvent, useEffect, useState } from "react";
 import BrandMark from "@/app/components/BrandMark";
 import SignOutButton from "@/app/components/SignOutButton";
 import { createSupabaseBrowserClient } from "@/lib/supabaseClient";
+import { tournamentCategories, tournamentPointsForResult, tournamentResults } from "@/lib/tournamentRules";
 import type { Province, Student, Tournament, TournamentEntry } from "@/lib/types";
 
 const emptyTournament = {
@@ -23,8 +24,7 @@ const emptyEntry = {
   category: "",
   placement: "",
   result_label: "",
-  medal: "",
-  points: "",
+  medal: "participation",
   status: "entered",
 };
 
@@ -158,8 +158,7 @@ export default function TournamentsClient() {
       category: entry.category ?? "",
       placement: entry.placement?.toString() ?? "",
       result_label: entry.result_label ?? "",
-      medal: entry.medal ?? "",
-      points: entry.points?.toString() ?? "",
+      medal: entry.medal ?? "participation",
       status: entry.status,
     });
   }
@@ -343,25 +342,26 @@ export default function TournamentsClient() {
           </label>
           <label>
             Category
-            <input value={entryForm.category} onChange={(event) => updateEntryField("category", event.target.value)} placeholder="Sparring U12, Patterns, etc." />
+            <select value={entryForm.category} onChange={(event) => updateEntryField("category", event.target.value)} required>
+              <option value="">Select category</option>
+              {tournamentCategories.map((category) => (
+                <option key={category} value={category}>{category}</option>
+              ))}
+            </select>
           </label>
           <label>
             Placement
             <input type="number" min="1" value={entryForm.placement} onChange={(event) => updateEntryField("placement", event.target.value)} />
           </label>
           <label>
-            Medal
+            Result
             <select value={entryForm.medal} onChange={(event) => updateEntryField("medal", event.target.value)}>
-              <option value="">None</option>
-              <option value="gold">gold</option>
-              <option value="silver">silver</option>
-              <option value="bronze">bronze</option>
+              {tournamentResults.map((result) => (
+                <option key={result} value={result}>{result}</option>
+              ))}
             </select>
           </label>
-          <label>
-            Points
-            <input type="number" step="0.5" value={entryForm.points} onChange={(event) => updateEntryField("points", event.target.value)} />
-          </label>
+          <p className="small-note">Points will be calculated automatically: {tournamentPointsForResult(entryForm.medal) ?? 0} points.</p>
           <label>
             Result note
             <input value={entryForm.result_label} onChange={(event) => updateEntryField("result_label", event.target.value)} />

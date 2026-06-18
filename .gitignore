@@ -37,6 +37,9 @@ env.local
 # vercel
 .vercel
 
+# local npm cache used by Codex installs
+.npm-cache/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

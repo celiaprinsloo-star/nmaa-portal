@@ -7,6 +7,7 @@ import { FormEvent, useCallback, useEffect, useState } from "react";
 import BrandMark from "@/app/components/BrandMark";
 import SignOutButton from "@/app/components/SignOutButton";
 import { createSupabaseBrowserClient } from "@/lib/supabaseClient";
+import { tournamentCategories, tournamentPointsForResult, tournamentResults } from "@/lib/tournamentRules";
 import type {
   ComplianceDocument,
   ComplianceRequirement,
@@ -85,8 +86,7 @@ const emptyPlacement = {
   school_id: "",
   category: "",
   placement: "",
-  medal: "",
-  points: "",
+  medal: "participation",
   result_label: "",
   status: "entered",
 };
@@ -416,8 +416,7 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
       school_id: entry.school_id,
       category: entry.category ?? "",
       placement: entry.placement?.toString() ?? "",
-      medal: entry.medal ?? "",
-      points: entry.points?.toString() ?? "",
+      medal: entry.medal ?? "participation",
       result_label: entry.result_label ?? "",
       status: entry.status,
     });
@@ -673,10 +672,10 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
             <h2>{editingPlacementId ? "Edit placement" : "Add placement"}</h2>
             <label>Tournament<select value={placementForm.tournament_id} onChange={(event) => updatePlacementField("tournament_id", event.target.value)} required>{tournaments.map((tournament) => <option key={tournament.id} value={tournament.id}>{tournament.name}</option>)}</select></label>
             <label>Student<select value={placementForm.student_id} onChange={(event) => updatePlacementField("student_id", event.target.value)} required>{students.map((student) => <option key={student.id} value={student.id}>{student.first_name} {student.last_name}</option>)}</select></label>
-            <label>Category<input value={placementForm.category} onChange={(event) => updatePlacementField("category", event.target.value)} /></label>
+            <label>Category<select value={placementForm.category} onChange={(event) => updatePlacementField("category", event.target.value)} required><option value="">Select category</option>{tournamentCategories.map((category) => <option key={category} value={category}>{category}</option>)}</select></label>
             <label>Placement<input type="number" min="1" value={placementForm.placement} onChange={(event) => updatePlacementField("placement", event.target.value)} /></label>
-            <label>Medal<select value={placementForm.medal} onChange={(event) => updatePlacementField("medal", event.target.value)}><option value="">None</option><option value="gold">gold</option><option value="silver">silver</option><option value="bronze">bronze</option></select></label>
-            <label>Points<input type="number" step="0.5" value={placementForm.points} onChange={(event) => updatePlacementField("points", event.target.value)} /></label>
+            <label>Result<select value={placementForm.medal} onChange={(event) => updatePlacementField("medal", event.target.value)}>{tournamentResults.map((result) => <option key={result} value={result}>{result}</option>)}</select></label>
+            <p className="small-note">Points will be calculated automatically: {tournamentPointsForResult(placementForm.medal) ?? 0} points.</p>
             <label>Result note<input value={placementForm.result_label} onChange={(event) => updatePlacementField("result_label", event.target.value)} /></label>
             <button className="primary-button compact" disabled={busy || tournaments.length === 0 || students.length === 0} type="submit">{editingPlacementId ? "Save placement" : "Add placement"}</button>
           </form>
@@ -808,10 +807,10 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
           <h2>{editingPlacementId ? "Edit placement" : "Add placement"}</h2>
           <label>Tournament<select value={placementForm.tournament_id} onChange={(event) => updatePlacementField("tournament_id", event.target.value)} required>{tournaments.map((tournament) => <option key={tournament.id} value={tournament.id}>{tournament.name}</option>)}</select></label>
           <label>Student<select value={placementForm.student_id} onChange={(event) => updatePlacementField("student_id", event.target.value)} required>{students.map((student) => <option key={student.id} value={student.id}>{student.first_name} {student.last_name}</option>)}</select></label>
-          <label>Category<input value={placementForm.category} onChange={(event) => updatePlacementField("category", event.target.value)} /></label>
+          <label>Category<select value={placementForm.category} onChange={(event) => updatePlacementField("category", event.target.value)} required><option value="">Select category</option>{tournamentCategories.map((category) => <option key={category} value={category}>{category}</option>)}</select></label>
           <label>Placement<input type="number" min="1" value={placementForm.placement} onChange={(event) => updatePlacementField("placement", event.target.value)} /></label>
-          <label>Medal<select value={placementForm.medal} onChange={(event) => updatePlacementField("medal", event.target.value)}><option value="">None</option><option value="gold">gold</option><option value="silver">silver</option><option value="bronze">bronze</option></select></label>
-          <label>Points<input type="number" step="0.5" value={placementForm.points} onChange={(event) => updatePlacementField("points", event.target.value)} /></label>
+          <label>Result<select value={placementForm.medal} onChange={(event) => updatePlacementField("medal", event.target.value)}>{tournamentResults.map((result) => <option key={result} value={result}>{result}</option>)}</select></label>
+          <p className="small-note">Points will be calculated automatically: {tournamentPointsForResult(placementForm.medal) ?? 0} points.</p>
           <label>Result note<input value={placementForm.result_label} onChange={(event) => updatePlacementField("result_label", event.target.value)} /></label>
           <button className="primary-button compact" disabled={busy || tournaments.length === 0 || students.length === 0} type="submit">{editingPlacementId ? "Save placement" : "Add placement"}</button>
         </form>

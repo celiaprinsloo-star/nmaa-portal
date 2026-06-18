@@ -115,6 +115,7 @@ export default function SchoolsClient() {
   const [editingId, setEditingId] = useState("");
   const [form, setForm] = useState(emptySchool);
   const [emailForm, setEmailForm] = useState(emptyEmail);
+  const [selectedEmailSchoolIds, setSelectedEmailSchoolIds] = useState<string[]>([]);
   const [emailSuccess, setEmailSuccess] = useState("");
   const [emailOpen, setEmailOpen] = useState(false);
   const [error, setError] = useState("");
@@ -134,6 +135,7 @@ export default function SchoolsClient() {
 
     setSchools(payload.schools);
     setProvinces(payload.provinces);
+    setSelectedEmailSchoolIds((current) => current.filter((schoolId) => payload.schools.some((school: School) => school.id === schoolId)));
     setError("");
   }
 
@@ -161,6 +163,22 @@ export default function SchoolsClient() {
 
   function updateEmailField(field: keyof typeof emptyEmail, value: string) {
     setEmailForm((current) => ({ ...current, [field]: value }));
+  }
+
+  function toggleEmailSchool(schoolId: string) {
+    setSelectedEmailSchoolIds((current) =>
+      current.includes(schoolId)
+        ? current.filter((id) => id !== schoolId)
+        : [...current, schoolId],
+    );
+  }
+
+  function selectAllEmailSchools() {
+    setSelectedEmailSchoolIds(schools.filter((school) => school.contact_email).map((school) => school.id));
+  }
+
+  function clearEmailSchools() {
+    setSelectedEmailSchoolIds([]);
   }
 
   function resetForm() {
@@ -223,7 +241,10 @@ export default function SchoolsClient() {
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(emailForm),
+      body: JSON.stringify({
+        ...emailForm,
+        school_ids: selectedEmailSchoolIds,
+      }),
     });
     const payload = await response.json();
     setBusy(false);
@@ -263,6 +284,7 @@ export default function SchoolsClient() {
   }
 
   const emailCount = schoolEmailCount(schools);
+  const selectedEmailCount = selectedEmailSchoolIds.length;
 
   return (
     <main className="app-page">
@@ -285,7 +307,7 @@ export default function SchoolsClient() {
             <div>
               <h2>Email schools</h2>
               <p className="muted">
-                Send a direct email to {emailCount} school contact{emailCount === 1 ? "" : "s"} from the portal.
+                Send a direct email to selected schools from the portal.
               </p>
             </div>
             <button className="secondary-button compact" onClick={() => setEmailOpen((current) => !current)} type="button">
@@ -294,6 +316,35 @@ export default function SchoolsClient() {
           </div>
           {emailOpen ? (
             <form className="stack-form" onSubmit={sendSchoolEmail}>
+              <section className="stat-panel">
+                <div className="row-actions" style={{ justifyContent: "space-between" }}>
+                  <div>
+                    <h3 style={{ margin: 0 }}>Recipients</h3>
+                    <p className="muted">
+                      {selectedEmailCount === 0
+                        ? `No schools selected. This will send to all ${emailCount} school contact${emailCount === 1 ? "" : "s"}.`
+                        : `${selectedEmailCount} school${selectedEmailCount === 1 ? "" : "s"} selected.`}
+                    </p>
+                  </div>
+                  <div className="row-actions">
+                    <button className="secondary-button compact" onClick={selectAllEmailSchools} type="button">Select all</button>
+                    <button className="secondary-button compact" onClick={clearEmailSchools} type="button">Clear</button>
+                  </div>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(230px, 1fr))", gap: 8 }}>
+                  {schools.map((school) => (
+                    <label className="checkbox-label" key={school.id} style={{ padding: 10, border: "1px solid #d9dee7", borderRadius: 8 }}>
+                      <input
+                        checked={selectedEmailSchoolIds.includes(school.id)}
+                        disabled={!school.contact_email}
+                        onChange={() => toggleEmailSchool(school.id)}
+                        type="checkbox"
+                      />
+                      <span>{school.name}{school.contact_email ? "" : " - no email"}</span>
+                    </label>
+                  ))}
+                </div>
+              </section>
               <label>
                 Subject
                 <input value={emailForm.subject} onChange={(event) => updateEmailField("subject", event.target.value)} required />
