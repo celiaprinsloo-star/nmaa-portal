@@ -54,6 +54,7 @@ export default function TournamentsClient() {
   const [editingTournamentId, setEditingTournamentId] = useState("");
   const [editingEntryId, setEditingEntryId] = useState("");
   const [error, setError] = useState("");
+  const [syncMessage, setSyncMessage] = useState("");
   const [busy, setBusy] = useState(false);
 
   async function loadTournaments(activeToken: string) {
@@ -251,6 +252,31 @@ export default function TournamentsClient() {
     await loadTournaments(token);
   }
 
+  async function syncLegacyPortal() {
+    setBusy(true);
+    setError("");
+    setSyncMessage("");
+
+    const response = await fetch("/api/admin/legacy-portal-sync", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const payload = await response.json();
+    setBusy(false);
+
+    if (!response.ok) {
+      setError(payload.error ?? "Unable to sync Legacy portal.");
+      return;
+    }
+
+    const imported = payload.result?.imported;
+    setSyncMessage(
+      `Legacy portal synced: ${imported?.competitions ?? 0} tournaments and ${
+        imported?.events ?? 0
+      } events.`
+    );
+  }
+
   return (
     <main className="app-page">
       <header className="page-header">
@@ -261,12 +287,16 @@ export default function TournamentsClient() {
           <p className="muted">Create tournaments, enter students, and record results.</p>
         </div>
         <div className="row-actions">
+          <button className="secondary-button compact" disabled={busy || !token} onClick={syncLegacyPortal} type="button">
+            Sync Legacy Portal
+          </button>
           <Link className="secondary-button compact" href="/dashboard">Dashboard</Link>
           <SignOutButton />
         </div>
       </header>
 
       {error ? <section className="content-shell"><p className="form-error">{error}</p></section> : null}
+      {syncMessage ? <section className="content-shell"><p className="form-success">{syncMessage}</p></section> : null}
 
       <section className="section-title">
         <h2>School leaderboard</h2>
