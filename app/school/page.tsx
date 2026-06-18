@@ -34,9 +34,9 @@ export default function SchoolPage() {
       href: "/school/orders",
     },
     {
-      title: "Tournament placements",
-      description: "Record student entries, medals, placements, and points.",
-      href: "/school/placements",
+      title: "Tournament results",
+      description: "Record student entries, medals, and points.",
+      href: "/school/results",
     },
   ];
 

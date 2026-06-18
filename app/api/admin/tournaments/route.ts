@@ -61,7 +61,7 @@ export async function GET(request: Request) {
       gold: number;
       silver: number;
       bronze: number;
-      placements: number;
+      results: number;
       entries: number;
     }
   >();
@@ -76,13 +76,13 @@ export async function GET(request: Request) {
       gold: 0,
       silver: 0,
       bronze: 0,
-      placements: 0,
+      results: 0,
       entries: 0,
     };
 
     current.entries += 1;
     current.points += Number(entry.points ?? 0);
-    if (entry.placement) current.placements += 1;
+    if (entry.medal || entry.result_label) current.results += 1;
     if (entry.medal === "gold") current.gold += 1;
     if (entry.medal === "silver") current.silver += 1;
     if (entry.medal === "bronze") current.bronze += 1;

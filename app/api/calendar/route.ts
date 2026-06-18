@@ -107,7 +107,7 @@ export async function GET(request: Request) {
       location: tournament.venue,
       status: null,
       owner: relatedName(tournament.provinces) ?? "National",
-      href: hasAdminAccess(user.profile.role) ? "/admin/tournaments" : "/school/placements",
+      href: hasAdminAccess(user.profile.role) ? "/admin/tournaments" : "/school/results",
     }));
 
   const canSeeCompliance = user.profile.role !== "instructor";

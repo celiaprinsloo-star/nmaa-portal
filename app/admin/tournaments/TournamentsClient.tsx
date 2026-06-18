@@ -22,7 +22,6 @@ const emptyEntry = {
   student_id: "",
   school_id: "",
   category: "",
-  placement: "",
   result_label: "",
   medal: "participation",
   status: "entered",
@@ -39,7 +38,7 @@ type LeaderboardRow = {
   gold: number;
   silver: number;
   bronze: number;
-  placements: number;
+  results: number;
   entries: number;
 };
 
@@ -156,7 +155,6 @@ export default function TournamentsClient() {
       student_id: entry.student_id,
       school_id: entry.school_id,
       category: entry.category ?? "",
-      placement: entry.placement?.toString() ?? "",
       result_label: entry.result_label ?? "",
       medal: entry.medal ?? "participation",
       status: entry.status,
@@ -260,7 +258,7 @@ export default function TournamentsClient() {
           <BrandMark compact />
           <p className="eyebrow">Admin</p>
           <h1>Tournaments</h1>
-          <p className="muted">Create tournaments, enter students, and record placements.</p>
+          <p className="muted">Create tournaments, enter students, and record results.</p>
         </div>
         <div className="row-actions">
           <Link className="secondary-button compact" href="/dashboard">Dashboard</Link>
@@ -323,7 +321,7 @@ export default function TournamentsClient() {
         </form>
 
         <form className="admin-form" onSubmit={saveEntry}>
-          <h2>{editingEntryId ? "Edit placement" : "Add entry / placement"}</h2>
+          <h2>{editingEntryId ? "Edit result" : "Add entry / result"}</h2>
           <label>
             Tournament
             <select value={entryForm.tournament_id} onChange={(event) => updateEntryField("tournament_id", event.target.value)} required>
@@ -350,10 +348,6 @@ export default function TournamentsClient() {
             </select>
           </label>
           <label>
-            Placement
-            <input type="number" min="1" value={entryForm.placement} onChange={(event) => updateEntryField("placement", event.target.value)} />
-          </label>
-          <label>
             Result
             <select value={entryForm.medal} onChange={(event) => updateEntryField("medal", event.target.value)}>
               {tournamentResults.map((result) => (
@@ -367,7 +361,7 @@ export default function TournamentsClient() {
             <input value={entryForm.result_label} onChange={(event) => updateEntryField("result_label", event.target.value)} />
           </label>
           <button className="primary-button compact" disabled={busy || tournaments.length === 0 || students.length === 0} type="submit">
-            {editingEntryId ? "Save placement" : "Add entry"}
+            {editingEntryId ? "Save result" : "Add entry"}
           </button>
         </form>
       </section>
@@ -392,7 +386,7 @@ export default function TournamentsClient() {
           <article className="list-row" key={entry.id}>
             <div>
               <h2>{entry.students?.first_name} {entry.students?.last_name}</h2>
-              <p>{entry.tournaments?.name ?? "Tournament"} | {entry.category ?? "No category"} | {entry.medal || entry.placement || entry.result_label || "entered"}</p>
+              <p>{entry.tournaments?.name ?? "Tournament"} | {entry.category ?? "No category"} | {entry.medal || entry.result_label || "entered"}</p>
             </div>
             <div className="row-actions">
               <button className="secondary-button compact" onClick={() => editEntry(entry)} type="button">Edit</button>

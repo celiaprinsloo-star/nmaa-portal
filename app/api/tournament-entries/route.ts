@@ -8,7 +8,7 @@ function cleanEntryBody(body: Record<string, unknown> | null) {
     student_id: String(body?.student_id ?? "").trim(),
     school_id: String(body?.school_id ?? "").trim(),
     category: normalizeTournamentCategory(String(body?.category ?? "")) || null,
-    placement: body?.placement ? Number(body.placement) : null,
+    placement: null,
     result_label: String(body?.result_label ?? "").trim() || null,
     medal: normalizeTournamentResult(String(body?.medal ?? body?.result ?? "")),
     points: tournamentPointsForResult(String(body?.medal ?? body?.result ?? "")),
@@ -83,7 +83,7 @@ export async function POST(request: Request) {
   const supabase = createSupabaseAdminClient();
 
   if (!(await canAccessSchool(supabase, user, entry.school_id))) {
-    return Response.json({ error: "You cannot add placements for that school." }, { status: 403 });
+    return Response.json({ error: "You cannot add results for that school." }, { status: 403 });
   }
 
   const { data, error } = await supabase

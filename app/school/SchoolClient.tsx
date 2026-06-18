@@ -85,7 +85,6 @@ const emptyPlacement = {
   student_id: "",
   school_id: "",
   category: "",
-  placement: "",
   medal: "participation",
   result_label: "",
   status: "entered",
@@ -394,7 +393,7 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
     setBusy(false);
 
     if (!response.ok) {
-      setError(payload.error ?? "Unable to save tournament placement.");
+      setError(payload.error ?? "Unable to save tournament result.");
       return;
     }
 
@@ -415,7 +414,6 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
       student_id: entry.student_id,
       school_id: entry.school_id,
       category: entry.category ?? "",
-      placement: entry.placement?.toString() ?? "",
       medal: entry.medal ?? "participation",
       result_label: entry.result_label ?? "",
       status: entry.status,
@@ -427,7 +425,7 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
     details: "School information",
     instructors: "Instructors",
     compliance: "Compliance documents",
-    placements: "Tournament placements",
+    placements: "Tournament results",
   }[section];
 
   const sectionDescription = {
@@ -669,21 +667,20 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
         {errorBlock}
         <section className="two-column-workspace">
           <form className="admin-form" onSubmit={savePlacement}>
-            <h2>{editingPlacementId ? "Edit placement" : "Add placement"}</h2>
+            <h2>{editingPlacementId ? "Edit result" : "Add result"}</h2>
             <label>Tournament<select value={placementForm.tournament_id} onChange={(event) => updatePlacementField("tournament_id", event.target.value)} required>{tournaments.map((tournament) => <option key={tournament.id} value={tournament.id}>{tournament.name}</option>)}</select></label>
             <label>Student<select value={placementForm.student_id} onChange={(event) => updatePlacementField("student_id", event.target.value)} required>{students.map((student) => <option key={student.id} value={student.id}>{student.first_name} {student.last_name}</option>)}</select></label>
             <label>Category<select value={placementForm.category} onChange={(event) => updatePlacementField("category", event.target.value)} required><option value="">Select category</option>{tournamentCategories.map((category) => <option key={category} value={category}>{category}</option>)}</select></label>
-            <label>Placement<input type="number" min="1" value={placementForm.placement} onChange={(event) => updatePlacementField("placement", event.target.value)} /></label>
             <label>Result<select value={placementForm.medal} onChange={(event) => updatePlacementField("medal", event.target.value)}>{tournamentResults.map((result) => <option key={result} value={result}>{result}</option>)}</select></label>
             <p className="small-note">Points will be calculated automatically: {tournamentPointsForResult(placementForm.medal) ?? 0} points.</p>
             <label>Result note<input value={placementForm.result_label} onChange={(event) => updatePlacementField("result_label", event.target.value)} /></label>
-            <button className="primary-button compact" disabled={busy || tournaments.length === 0 || students.length === 0} type="submit">{editingPlacementId ? "Save placement" : "Add placement"}</button>
+            <button className="primary-button compact" disabled={busy || tournaments.length === 0 || students.length === 0} type="submit">{editingPlacementId ? "Save result" : "Add result"}</button>
           </form>
 
           <section className="table-list">
             {entries.map((entry) => (
               <article className="list-row" key={entry.id}>
-                <div><h2>{entry.students?.first_name} {entry.students?.last_name}</h2><p>{entry.tournaments?.name ?? "Tournament"} | {entry.category ?? "No category"} | {entry.medal || entry.placement || entry.result_label || "entered"}</p></div>
+                <div><h2>{entry.students?.first_name} {entry.students?.last_name}</h2><p>{entry.tournaments?.name ?? "Tournament"} | {entry.category ?? "No category"} | {entry.medal || entry.result_label || "entered"}</p></div>
                 <button className="secondary-button compact" onClick={() => editPlacement(entry)} type="button">Edit</button>
               </article>
             ))}
@@ -801,23 +798,22 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
         </section>
       </section>
 
-      <section className="section-title placements-block"><h2>Tournament Placements</h2><p>Add entries and results for your school&apos;s students.</p></section>
+      <section className="section-title placements-block"><h2>Tournament Results</h2><p>Add entries and results for your school&apos;s students.</p></section>
       <section className="two-column-workspace placements-block">
         <form className="admin-form" onSubmit={savePlacement}>
-          <h2>{editingPlacementId ? "Edit placement" : "Add placement"}</h2>
+          <h2>{editingPlacementId ? "Edit result" : "Add result"}</h2>
           <label>Tournament<select value={placementForm.tournament_id} onChange={(event) => updatePlacementField("tournament_id", event.target.value)} required>{tournaments.map((tournament) => <option key={tournament.id} value={tournament.id}>{tournament.name}</option>)}</select></label>
           <label>Student<select value={placementForm.student_id} onChange={(event) => updatePlacementField("student_id", event.target.value)} required>{students.map((student) => <option key={student.id} value={student.id}>{student.first_name} {student.last_name}</option>)}</select></label>
           <label>Category<select value={placementForm.category} onChange={(event) => updatePlacementField("category", event.target.value)} required><option value="">Select category</option>{tournamentCategories.map((category) => <option key={category} value={category}>{category}</option>)}</select></label>
-          <label>Placement<input type="number" min="1" value={placementForm.placement} onChange={(event) => updatePlacementField("placement", event.target.value)} /></label>
           <label>Result<select value={placementForm.medal} onChange={(event) => updatePlacementField("medal", event.target.value)}>{tournamentResults.map((result) => <option key={result} value={result}>{result}</option>)}</select></label>
           <p className="small-note">Points will be calculated automatically: {tournamentPointsForResult(placementForm.medal) ?? 0} points.</p>
           <label>Result note<input value={placementForm.result_label} onChange={(event) => updatePlacementField("result_label", event.target.value)} /></label>
-          <button className="primary-button compact" disabled={busy || tournaments.length === 0 || students.length === 0} type="submit">{editingPlacementId ? "Save placement" : "Add placement"}</button>
+          <button className="primary-button compact" disabled={busy || tournaments.length === 0 || students.length === 0} type="submit">{editingPlacementId ? "Save result" : "Add result"}</button>
         </form>
         <section className="table-list">
           {entries.map((entry) => (
             <article className="list-row" key={entry.id}>
-              <div><h2>{entry.students?.first_name} {entry.students?.last_name}</h2><p>{entry.tournaments?.name ?? "Tournament"} | {entry.category ?? "No category"} | {entry.medal || entry.placement || entry.result_label || "entered"}</p></div>
+              <div><h2>{entry.students?.first_name} {entry.students?.last_name}</h2><p>{entry.tournaments?.name ?? "Tournament"} | {entry.category ?? "No category"} | {entry.medal || entry.result_label || "entered"}</p></div>
               <button className="secondary-button compact" onClick={() => editPlacement(entry)} type="button">Edit</button>
             </article>
           ))}

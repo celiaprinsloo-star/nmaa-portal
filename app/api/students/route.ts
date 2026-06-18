@@ -23,7 +23,7 @@ export async function GET(request: Request) {
   }
 
   if (user.profile.role === "instructor") {
-    return Response.json({ error: "Instructors use the placements page for student results." }, { status: 403 });
+    return Response.json({ error: "Instructors use the tournament results page for student results." }, { status: 403 });
   }
 
   const supabase = createSupabaseAdminClient();
