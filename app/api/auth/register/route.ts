@@ -1,5 +1,5 @@
 import { createSupabaseAdminClient } from "@/lib/supabaseAdmin";
-import { roles } from "@/lib/types";
+import { publicRegistrationRoles } from "@/lib/types";
 
 export async function POST(request: Request) {
   const body = await request.json().catch(() => null);
@@ -13,7 +13,7 @@ export async function POST(request: Request) {
   const password = String(body.password ?? "");
   const requestedRole = String(body.requested_role ?? "");
 
-  if (!fullName || !email || password.length < 8 || !roles.includes(requestedRole as never)) {
+  if (!fullName || !email || password.length < 8 || !publicRegistrationRoles.includes(requestedRole as never)) {
     return Response.json({ error: "Please complete all registration fields." }, { status: 400 });
   }
 

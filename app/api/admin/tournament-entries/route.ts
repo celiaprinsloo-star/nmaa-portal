@@ -1,4 +1,5 @@
 import { requireAdmin } from "@/lib/server/requireAdmin";
+import { logAuditEvent } from "@/lib/server/audit";
 import { createSupabaseAdminClient } from "@/lib/supabaseAdmin";
 import { normalizeTournamentCategory, normalizeTournamentResult, tournamentPointsForResult } from "@/lib/tournamentRules";
 
@@ -8,7 +9,6 @@ function cleanEntryBody(body: Record<string, unknown> | null) {
     student_id: String(body?.student_id ?? "").trim(),
     school_id: String(body?.school_id ?? "").trim(),
     category: normalizeTournamentCategory(String(body?.category ?? "")) || null,
-    placement: null,
     result_label: String(body?.result_label ?? "").trim() || null,
     medal: normalizeTournamentResult(String(body?.medal ?? body?.result ?? "")),
     points: tournamentPointsForResult(String(body?.medal ?? body?.result ?? "")),
@@ -38,12 +38,21 @@ export async function POST(request: Request) {
   const { data, error } = await supabase
     .from("tournament_entries")
     .insert(entry)
-    .select("id,tournament_id,student_id,school_id,category,placement,result_label,medal,points,status,students(first_name,last_name,belt_rank),schools(name),tournaments(name)")
+    .select("id,tournament_id,student_id,school_id,category,result_label,medal,points,status,students(first_name,last_name,belt_rank),schools(name),tournaments(name)")
     .single();
 
   if (error) {
     return Response.json({ error: error.message }, { status: 400 });
   }
+
+  await logAuditEvent({
+    actorId: user.id,
+    action: "tournament_entry.created",
+    entityTable: "tournament_entries",
+    entityId: data.id,
+    summary: "Admin created tournament result",
+    metadata: { school_id: data.school_id, medal: data.medal, points: data.points },
+  });
 
   return Response.json({ entry: data });
 }

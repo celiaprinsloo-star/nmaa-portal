@@ -7,6 +7,7 @@ export const roles = [
 ] as const;
 
 export type UserRole = (typeof roles)[number];
+export const publicRegistrationRoles = ["provincial_admin", "school_owner", "instructor"] as const satisfies readonly UserRole[];
 
 export type ApprovalStatus = "pending" | "approved" | "rejected";
 
@@ -106,7 +107,6 @@ export type TournamentEntry = {
   student_id: string;
   school_id: string;
   category: string | null;
-  placement: number | null;
   result_label: string | null;
   medal: string | null;
   points: number | null;
@@ -138,6 +138,8 @@ export type EventBooking = {
   event_id: string;
   profile_id: string | null;
   school_id: string | null;
+  student_id?: string | null;
+  instructor_id?: string | null;
   attendee_name: string;
   attendee_email: string | null;
   attendee_phone: string | null;
@@ -147,6 +149,8 @@ export type EventBooking = {
   created_at: string;
   events?: Pick<Event, "title" | "starts_at"> | null;
   schools?: Pick<School, "name"> | null;
+  students?: Pick<Student, "first_name" | "last_name"> | null;
+  instructors?: Pick<Instructor, "full_name"> | null;
 };
 
 export type Instructor = {

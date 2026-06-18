@@ -1,4 +1,5 @@
 import { requireAdmin } from "@/lib/server/requireAdmin";
+import { logAuditEvent } from "@/lib/server/audit";
 import { createSupabaseAdminClient } from "@/lib/supabaseAdmin";
 
 type OrderRouteContext = {
@@ -32,6 +33,15 @@ export async function PATCH(request: Request, context: OrderRouteContext) {
   if (error) {
     return Response.json({ error: error.message }, { status: 400 });
   }
+
+  await logAuditEvent({
+    actorId: user.id,
+    action: "school_order.status_changed",
+    entityTable: "school_orders",
+    entityId: id,
+    summary: `Order marked ${status}`,
+    metadata: { status },
+  });
 
   return Response.json({ order: data });
 }

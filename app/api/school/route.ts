@@ -1,4 +1,5 @@
 import { requireApprovedUser } from "@/lib/server/access";
+import { logAuditEvent } from "@/lib/server/audit";
 import { createSupabaseAdminClient } from "@/lib/supabaseAdmin";
 
 function cleanSchoolBody(body: Record<string, unknown> | null) {
@@ -63,6 +64,14 @@ export async function PATCH(request: Request) {
   if (error) {
     return Response.json({ error: error.message }, { status: 400 });
   }
+
+  await logAuditEvent({
+    actorId: user.id,
+    action: "school.updated",
+    entityTable: "schools",
+    entityId: user.profile.school_id,
+    summary: `School owner updated ${data.name}`,
+  });
 
   return Response.json({ school: data });
 }

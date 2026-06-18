@@ -654,7 +654,7 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
             <label>Instructor<select value={documentForm.instructor_id} onChange={(event) => updateDocumentField("instructor_id", event.target.value)}><option value="">School level</option>{documentInstructors.map((instructor) => <option key={instructor.id} value={instructor.id}>{instructor.full_name}</option>)}</select></label>
             <label>Document name<input value={documentForm.document_name} onChange={(event) => updateDocumentField("document_name", event.target.value)} required /></label>
             <label>Document file<input accept=".pdf,.doc,.docx,image/png,image/jpeg,image/webp" type="file" onChange={(event) => setDocumentFile(event.target.files?.[0] ?? null)} /></label>
-            <label>Status<select value={documentForm.status} onChange={(event) => updateDocumentField("status", event.target.value)}><option value="submitted">submitted</option><option value="pending">pending</option><option value="approved">approved</option><option value="expired">expired</option></select></label>
+            <p className="small-note">New and updated documents are submitted for admin review.</p>
             <label>Expiry<input type="date" value={documentForm.expires_at} onChange={(event) => updateDocumentField("expires_at", event.target.value)} /></label>
             <button className="primary-button compact" disabled={busy || !school} type="submit">{editingDocumentId ? "Save document" : "Add document"}</button>
           </form>
@@ -812,7 +812,7 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
           <label>Instructor<select value={documentForm.instructor_id} onChange={(event) => updateDocumentField("instructor_id", event.target.value)}><option value="">School level</option>{documentInstructors.map((instructor) => <option key={instructor.id} value={instructor.id}>{instructor.full_name}</option>)}</select></label>
           <label>Document name<input value={documentForm.document_name} onChange={(event) => updateDocumentField("document_name", event.target.value)} required /></label>
           <label>Document file<input accept=".pdf,.doc,.docx,image/png,image/jpeg,image/webp" type="file" onChange={(event) => setDocumentFile(event.target.files?.[0] ?? null)} /></label>
-          <label>Status<select value={documentForm.status} onChange={(event) => updateDocumentField("status", event.target.value)}><option value="submitted">submitted</option><option value="pending">pending</option><option value="approved">approved</option><option value="expired">expired</option></select></label>
+            <p className="small-note">New and updated documents are submitted for admin review.</p>
           <label>Expiry<input type="date" value={documentForm.expires_at} onChange={(event) => updateDocumentField("expires_at", event.target.value)} /></label>
           <button className="primary-button compact" disabled={busy || !school} type="submit">{editingDocumentId ? "Save document" : "Add document"}</button>
         </form>

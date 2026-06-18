@@ -5,10 +5,12 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import BrandMark from "@/app/components/BrandMark";
 import SignOutButton from "@/app/components/SignOutButton";
 import { createSupabaseBrowserClient } from "@/lib/supabaseClient";
-import type { Event as PortalEvent, EventBooking } from "@/lib/types";
+import type { Event as PortalEvent, EventBooking, Instructor, Student } from "@/lib/types";
 
 const emptyBooking = {
   event_id: "",
+  student_id: "",
+  instructor_id: "",
   attendee_name: "",
   attendee_email: "",
   attendee_phone: "",
@@ -39,6 +41,8 @@ export default function SchoolEventsClient() {
   const [token, setToken] = useState("");
   const [events, setEvents] = useState<PortalEvent[]>([]);
   const [bookings, setBookings] = useState<EventBooking[]>([]);
+  const [students, setStudents] = useState<Pick<Student, "id" | "first_name" | "last_name">[]>([]);
+  const [instructors, setInstructors] = useState<Pick<Instructor, "id" | "full_name" | "email" | "phone">[]>([]);
   const [form, setForm] = useState(emptyBooking);
   const [eventForm, setEventForm] = useState(emptyEvent);
   const [canCreateEvents, setCanCreateEvents] = useState(false);
@@ -66,6 +70,8 @@ export default function SchoolEventsClient() {
     const nextEvents = payload.events ?? [];
     setEvents(nextEvents);
     setBookings(payload.bookings ?? []);
+    setStudents(payload.students ?? []);
+    setInstructors(payload.instructors ?? []);
     setCanCreateEvents(Boolean(payload.can_create_events));
     setForm((current) => ({
       ...current,
@@ -94,6 +100,30 @@ export default function SchoolEventsClient() {
 
   function updateField(field: keyof typeof emptyBooking, value: string) {
     setForm((current) => ({ ...current, [field]: value }));
+  }
+
+  function selectStudent(studentId: string) {
+    const student = students.find((item) => item.id === studentId);
+    setForm((current) => ({
+      ...current,
+      student_id: studentId,
+      instructor_id: "",
+      attendee_type: studentId ? "student" : current.attendee_type,
+      attendee_name: student ? `${student.first_name} ${student.last_name}` : current.attendee_name,
+    }));
+  }
+
+  function selectInstructor(instructorId: string) {
+    const instructor = instructors.find((item) => item.id === instructorId);
+    setForm((current) => ({
+      ...current,
+      student_id: "",
+      instructor_id: instructorId,
+      attendee_type: instructorId ? "instructor" : current.attendee_type,
+      attendee_name: instructor?.full_name ?? current.attendee_name,
+      attendee_email: instructor?.email ?? current.attendee_email,
+      attendee_phone: instructor?.phone ?? current.attendee_phone,
+    }));
   }
 
   function updateEventField(field: keyof typeof emptyEvent, value: string) {
@@ -247,6 +277,24 @@ export default function SchoolEventsClient() {
             </select>
           </label>
           <label>
+            Existing student
+            <select value={form.student_id} onChange={(event) => selectStudent(event.target.value)}>
+              <option value="">Manual / not a student</option>
+              {students.map((student) => (
+                <option key={student.id} value={student.id}>{student.first_name} {student.last_name}</option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Existing instructor
+            <select value={form.instructor_id} onChange={(event) => selectInstructor(event.target.value)}>
+              <option value="">Manual / not an instructor</option>
+              {instructors.map((instructor) => (
+                <option key={instructor.id} value={instructor.id}>{instructor.full_name}</option>
+              ))}
+            </select>
+          </label>
+          <label>
             Attendee name
             <input value={form.attendee_name} onChange={(event) => updateField("attendee_name", event.target.value)} required />
           </label>
@@ -336,6 +384,7 @@ export default function SchoolEventsClient() {
                 <h2>{booking.attendee_name}</h2>
                 <dl className="detail-grid">
                   <div><dt>Event</dt><dd>{booking.events?.title ?? "Event"}</dd></div>
+                  <div><dt>Linked record</dt><dd>{booking.students ? `${booking.students.first_name} ${booking.students.last_name}` : booking.instructors?.full_name ?? "Manual"}</dd></div>
                   <div><dt>Type</dt><dd>{booking.attendee_type ?? "Attendee"}</dd></div>
                   <div><dt>Status</dt><dd>{booking.status}</dd></div>
                   <div><dt>Email</dt><dd>{booking.attendee_email || "No email"}</dd></div>

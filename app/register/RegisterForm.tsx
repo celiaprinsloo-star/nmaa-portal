@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import { roles, type UserRole } from "@/lib/types";
+import { publicRegistrationRoles, type UserRole } from "@/lib/types";
 
 const roleLabels: Record<UserRole, string> = {
   super_admin: "Super admin",
@@ -88,7 +88,7 @@ export default function RegisterForm() {
           value={requestedRole}
           onChange={(event) => setRequestedRole(event.target.value as UserRole)}
         >
-          {roles.map((role) => (
+          {publicRegistrationRoles.map((role) => (
             <option key={role} value={role}>
               {roleLabels[role]}
             </option>

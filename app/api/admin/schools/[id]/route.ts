@@ -1,4 +1,5 @@
 import { requireAdmin } from "@/lib/server/requireAdmin";
+import { logAuditEvent } from "@/lib/server/audit";
 import { createSupabaseAdminClient } from "@/lib/supabaseAdmin";
 
 type SchoolRouteContext = {
@@ -46,6 +47,14 @@ export async function PATCH(request: Request, context: SchoolRouteContext) {
     return Response.json({ error: error.message }, { status: 400 });
   }
 
+  await logAuditEvent({
+    actorId: user.id,
+    action: "school.updated",
+    entityTable: "schools",
+    entityId: id,
+    summary: `Admin updated ${data.name}`,
+  });
+
   return Response.json({ school: data });
 }
 
@@ -63,6 +72,14 @@ export async function DELETE(request: Request, context: SchoolRouteContext) {
   if (error) {
     return Response.json({ error: error.message }, { status: 400 });
   }
+
+  await logAuditEvent({
+    actorId: user.id,
+    action: "school.deleted",
+    entityTable: "schools",
+    entityId: id,
+    summary: "Admin deleted school",
+  });
 
   return Response.json({ ok: true });
 }

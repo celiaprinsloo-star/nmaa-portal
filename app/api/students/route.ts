@@ -1,5 +1,7 @@
 import { hasAdminAccess } from "@/lib/server/auth";
 import { getAllowedSchoolIds, requireApprovedUser } from "@/lib/server/access";
+import { logAuditEvent } from "@/lib/server/audit";
+import { paginationFromUrl, paginationPayload } from "@/lib/server/pagination";
 import { createSupabaseAdminClient } from "@/lib/supabaseAdmin";
 
 function cleanStudentBody(body: Record<string, unknown> | null) {
@@ -27,7 +29,14 @@ export async function GET(request: Request) {
   }
 
   const supabase = createSupabaseAdminClient();
-  const requestedSchoolId = new URL(request.url).searchParams.get("school_id");
+  const url = new URL(request.url);
+  const requestedSchoolId = url.searchParams.get("school_id");
+  const search = url.searchParams.get("search")?.trim();
+  const status = url.searchParams.get("status")?.trim();
+  const gender = url.searchParams.get("gender")?.trim();
+  const race = url.searchParams.get("race")?.trim();
+  const rank = url.searchParams.get("rank")?.trim();
+  const { page, pageSize, from, to } = paginationFromUrl(request.url);
   const { schoolIds, error: schoolError } = await getAllowedSchoolIds(supabase, user);
 
   if (schoolError) {
@@ -41,7 +50,7 @@ export async function GET(request: Request) {
 
   const studentsQuery = supabase
     .from("students")
-    .select("id,school_id,instructor_id,first_name,last_name,date_of_birth,gender,race,belt_rank,membership_status,schools(name)")
+    .select("id,school_id,instructor_id,first_name,last_name,date_of_birth,gender,race,belt_rank,membership_status,schools(name)", { count: "exact" })
     .order("last_name");
 
   const filteredSchoolIds = requestedSchoolId ? schoolIds.filter((schoolId) => schoolId === requestedSchoolId) : schoolIds;
@@ -53,6 +62,14 @@ export async function GET(request: Request) {
     schoolsQuery.eq("id", "00000000-0000-0000-0000-000000000000");
     studentsQuery.eq("school_id", "00000000-0000-0000-0000-000000000000");
   }
+
+  if (search) studentsQuery.or(`first_name.ilike.%${search}%,last_name.ilike.%${search}%`);
+  if (status) studentsQuery.eq("membership_status", status);
+  if (gender) studentsQuery.eq("gender", gender);
+  if (race) studentsQuery.eq("race", race);
+  if (rank) studentsQuery.eq("belt_rank", rank);
+
+  studentsQuery.range(from, to);
 
   const [studentsResult, schoolsResult] = await Promise.all([studentsQuery, schoolsQuery]);
 
@@ -67,6 +84,7 @@ export async function GET(request: Request) {
   return Response.json({
     students: studentsResult.data,
     schools: schoolsResult.data,
+    pagination: paginationPayload(page, pageSize, studentsResult.count),
     profile_role: user.profile.role,
     can_manage_students: user.profile.role === "school_owner",
   });
@@ -110,6 +128,15 @@ export async function POST(request: Request) {
   if (error) {
     return Response.json({ error: error.message }, { status: 400 });
   }
+
+  await logAuditEvent({
+    actorId: user.id,
+    action: "student.created",
+    entityTable: "students",
+    entityId: data.id,
+    summary: `Created student ${data.first_name} ${data.last_name}`,
+    metadata: { school_id: data.school_id },
+  });
 
   return Response.json({ student: data });
 }

@@ -1,4 +1,5 @@
 import { requireAdmin } from "@/lib/server/requireAdmin";
+import { logAuditEvent } from "@/lib/server/audit";
 import { createSupabaseAdminClient } from "@/lib/supabaseAdmin";
 
 const catalogSelect =
@@ -70,6 +71,14 @@ export async function POST(request: Request) {
   if (error) {
     return Response.json({ error: error.message }, { status: 400 });
   }
+
+  await logAuditEvent({
+    actorId: user.id,
+    action: "order_catalog.created",
+    entityTable: "order_catalog_items",
+    entityId: data.id,
+    summary: `Created order item ${data.item}`,
+  });
 
   return Response.json({ item: data });
 }

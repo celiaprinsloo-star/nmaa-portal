@@ -1,4 +1,6 @@
 import { requireAdmin } from "@/lib/server/requireAdmin";
+import { logAuditEvent } from "@/lib/server/audit";
+import { paginationFromUrl, paginationPayload } from "@/lib/server/pagination";
 import { createSupabaseAdminClient } from "@/lib/supabaseAdmin";
 
 function cleanSchoolBody(body: Record<string, unknown> | null) {
@@ -23,6 +25,11 @@ export async function GET(request: Request) {
   }
 
   const supabase = createSupabaseAdminClient();
+  const url = new URL(request.url);
+  const search = url.searchParams.get("search")?.trim().toLowerCase();
+  const provinceId = url.searchParams.get("province_id")?.trim();
+  const status = url.searchParams.get("status")?.trim();
+  const { page, pageSize } = paginationFromUrl(request.url);
   const [schoolsResult, provincesResult, studentsResult, requirementsResult, documentsResult, instructorsResult] = await Promise.all([
     supabase
       .from("schools")
@@ -126,11 +133,20 @@ export async function GET(request: Request) {
         return new Date(document.expires_at) < today;
       }).length,
     };
+  }).filter((school) => {
+    if (search && !`${school.name} ${school.city ?? ""} ${school.contact_email ?? ""}`.toLowerCase().includes(search)) return false;
+    if (provinceId && school.province_id !== provinceId) return false;
+    if (status && school.affiliation_status !== status) return false;
+    return true;
   });
 
+  const from = (page - 1) * pageSize;
+  const pagedSchools = schools.slice(from, from + pageSize);
+
   return Response.json({
-    schools,
+    schools: pagedSchools,
     provinces: provincesResult.data,
+    pagination: paginationPayload(page, pageSize, schools.length),
   });
 }
 
@@ -158,6 +174,14 @@ export async function POST(request: Request) {
   if (error) {
     return Response.json({ error: error.message }, { status: 400 });
   }
+
+  await logAuditEvent({
+    actorId: user.id,
+    action: "school.created",
+    entityTable: "schools",
+    entityId: data.id,
+    summary: `Created school ${data.name}`,
+  });
 
   return Response.json({ school: data });
 }

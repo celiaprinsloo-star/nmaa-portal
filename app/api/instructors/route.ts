@@ -1,5 +1,7 @@
 import { canAccessSchool, getAllowedSchoolIds, requireApprovedUser } from "@/lib/server/access";
 import { hasAdminAccess } from "@/lib/server/auth";
+import { logAuditEvent } from "@/lib/server/audit";
+import { paginationFromUrl, paginationPayload } from "@/lib/server/pagination";
 import { createSupabaseAdminClient } from "@/lib/supabaseAdmin";
 
 function cleanInstructorBody(body: Record<string, unknown> | null) {
@@ -31,7 +33,14 @@ export async function GET(request: Request) {
   }
 
   const supabase = createSupabaseAdminClient();
-  const requestedSchoolId = new URL(request.url).searchParams.get("school_id");
+  const url = new URL(request.url);
+  const requestedSchoolId = url.searchParams.get("school_id");
+  const search = url.searchParams.get("search")?.trim();
+  const status = url.searchParams.get("status")?.trim();
+  const rank = url.searchParams.get("rank")?.trim();
+  const collar = url.searchParams.get("collar")?.trim();
+  const active = url.searchParams.get("active")?.trim();
+  const { page, pageSize, from, to } = paginationFromUrl(request.url);
   const { schoolIds, error: schoolError } = await getAllowedSchoolIds(supabase, user);
 
   if (schoolError) {
@@ -40,7 +49,7 @@ export async function GET(request: Request) {
 
   const instructorsQuery = supabase
     .from("instructors")
-    .select(instructorSelect)
+    .select(instructorSelect, { count: "exact" })
     .order("full_name");
   const schoolsQuery = supabase
     .from("schools")
@@ -57,6 +66,15 @@ export async function GET(request: Request) {
     schoolsQuery.eq("id", "00000000-0000-0000-0000-000000000000");
   }
 
+  if (search) instructorsQuery.or(`full_name.ilike.%${search}%,email.ilike.%${search}%`);
+  if (status) instructorsQuery.eq("training_status", status);
+  if (rank) instructorsQuery.eq("rank", rank);
+  if (collar) instructorsQuery.eq("collar_level", collar);
+  if (active === "active") instructorsQuery.eq("active", true);
+  if (active === "inactive") instructorsQuery.eq("active", false);
+
+  instructorsQuery.range(from, to);
+
   const [instructorsResult, schoolsResult] = await Promise.all([instructorsQuery, schoolsQuery]);
 
   if (instructorsResult.error) {
@@ -67,7 +85,12 @@ export async function GET(request: Request) {
     return Response.json({ error: schoolsResult.error.message }, { status: 400 });
   }
 
-  return Response.json({ instructors: instructorsResult.data, schools: schoolsResult.data });
+  return Response.json({
+    instructors: instructorsResult.data,
+    schools: schoolsResult.data,
+    can_manage_instructors: hasAdminAccess(user.profile.role) || user.profile.role === "school_owner",
+    pagination: paginationPayload(page, pageSize, instructorsResult.count),
+  });
 }
 
 export async function POST(request: Request) {
@@ -101,6 +124,15 @@ export async function POST(request: Request) {
   if (error) {
     return Response.json({ error: error.message }, { status: 400 });
   }
+
+  await logAuditEvent({
+    actorId: user.id,
+    action: "instructor.created",
+    entityTable: "instructors",
+    entityId: data.id,
+    summary: `Created instructor ${data.full_name}`,
+    metadata: { school_id: data.school_id },
+  });
 
   return Response.json({ instructor: data });
 }

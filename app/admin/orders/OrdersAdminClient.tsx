@@ -80,12 +80,19 @@ export default function OrdersAdminClient() {
   const [editingCatalogId, setEditingCatalogId] = useState("");
   const [statusDrafts, setStatusDrafts] = useState<Record<string, string>>({});
   const [noteDrafts, setNoteDrafts] = useState<Record<string, string>>({});
+  const [filters, setFilters] = useState({ search: "", status: "" });
+  const [pagination, setPagination] = useState({ page: 1, page_size: 25, total: 0, has_more: false });
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
-  async function loadOrders(activeToken: string) {
+  async function loadOrders(activeToken: string, page = 1, append = false) {
+    const query = new URLSearchParams();
+    query.set("page", String(page));
+    query.set("page_size", "25");
+    if (filters.search) query.set("search", filters.search);
+    if (filters.status) query.set("status", filters.status);
     const [ordersResponse, catalogResponse] = await Promise.all([
-      fetch("/api/admin/orders", {
+      fetch(`/api/admin/orders?${query.toString()}`, {
         headers: { Authorization: `Bearer ${activeToken}` },
       }),
       fetch("/api/admin/order-catalog", {
@@ -104,7 +111,8 @@ export default function OrdersAdminClient() {
       return;
     }
 
-    setOrders(payload.orders);
+    setOrders((current) => (append ? [...current, ...payload.orders] : payload.orders));
+    setPagination(payload.pagination ?? { page, page_size: 25, total: payload.orders.length, has_more: false });
     setCatalog(catalogPayload.items);
     setStatusDrafts(
       Object.fromEntries(payload.orders.map((order: SchoolOrder) => [order.id, order.status])),
@@ -161,6 +169,10 @@ export default function OrdersAdminClient() {
 
   function updateCatalogField(field: keyof typeof emptyCatalogItem, value: string | boolean) {
     setCatalogForm((current) => ({ ...current, [field]: value }));
+  }
+
+  function updateFilter(field: keyof typeof filters, value: string) {
+    setFilters((current) => ({ ...current, [field]: value }));
   }
 
   function editCatalogItem(item: OrderCatalogItem) {
@@ -293,6 +305,16 @@ export default function OrdersAdminClient() {
         <p>Update each order as it moves through processing.</p>
       </section>
       <section className="content-shell table-list">
+        <div className="admin-form">
+          <h2>Find orders</h2>
+          <label>Search<input value={filters.search} onChange={(event) => updateFilter("search", event.target.value)} placeholder="Contact name or email" /></label>
+          <label>Status<select value={filters.status} onChange={(event) => updateFilter("status", event.target.value)}><option value="">All statuses</option>{statuses.map((status) => <option key={status} value={status}>{status}</option>)}</select></label>
+          <div className="row-actions">
+            <button className="primary-button compact" onClick={() => loadOrders(token)} type="button">Apply filters</button>
+            <button className="secondary-button compact" onClick={() => { setFilters({ search: "", status: "" }); window.setTimeout(() => loadOrders(token), 0); }} type="button">Clear</button>
+          </div>
+          <p className="small-note">Showing {orders.length} of {pagination.total} orders.</p>
+        </div>
         {orders.length === 0 ? (
           <article className="empty-state">No orders submitted yet.</article>
         ) : (
@@ -334,6 +356,9 @@ export default function OrdersAdminClient() {
             </article>
           ))
         )}
+        {pagination.has_more ? (
+          <button className="secondary-button" disabled={busy} onClick={() => loadOrders(token, pagination.page + 1, true)} type="button">Load more orders</button>
+        ) : null}
       </section>
     </main>
   );

@@ -118,12 +118,21 @@ export default function SchoolsClient() {
   const [selectedEmailSchoolIds, setSelectedEmailSchoolIds] = useState<string[]>([]);
   const [emailSuccess, setEmailSuccess] = useState("");
   const [emailOpen, setEmailOpen] = useState(false);
+  const [filters, setFilters] = useState({ search: "", province_id: "", status: "" });
+  const [pagination, setPagination] = useState({ page: 1, page_size: 25, total: 0, has_more: false });
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const formSectionRef = useRef<HTMLElement | null>(null);
 
-  async function loadSchools(activeToken: string) {
-    const response = await fetch("/api/admin/schools", {
+  async function loadSchools(activeToken: string, page = 1, append = false) {
+    const query = new URLSearchParams();
+    query.set("page", String(page));
+    query.set("page_size", "25");
+    if (filters.search) query.set("search", filters.search);
+    if (filters.province_id) query.set("province_id", filters.province_id);
+    if (filters.status) query.set("status", filters.status);
+
+    const response = await fetch(`/api/admin/schools?${query.toString()}`, {
       headers: { Authorization: `Bearer ${activeToken}` },
     });
     const payload = await response.json();
@@ -133,8 +142,9 @@ export default function SchoolsClient() {
       return;
     }
 
-    setSchools(payload.schools);
+    setSchools((current) => (append ? [...current, ...payload.schools] : payload.schools));
     setProvinces(payload.provinces);
+    setPagination(payload.pagination ?? { page, page_size: 25, total: payload.schools.length, has_more: false });
     setSelectedEmailSchoolIds((current) => current.filter((schoolId) => payload.schools.some((school: School) => school.id === schoolId)));
     setError("");
   }
@@ -163,6 +173,10 @@ export default function SchoolsClient() {
 
   function updateEmailField(field: keyof typeof emptyEmail, value: string) {
     setEmailForm((current) => ({ ...current, [field]: value }));
+  }
+
+  function updateFilter(field: keyof typeof filters, value: string) {
+    setFilters((current) => ({ ...current, [field]: value }));
   }
 
   function toggleEmailSchool(schoolId: string) {
@@ -302,6 +316,20 @@ export default function SchoolsClient() {
       </header>
 
       <section className="content-shell">
+        <div className="admin-form">
+          <h2>Find schools</h2>
+          <label>Search<input value={filters.search} onChange={(event) => updateFilter("search", event.target.value)} placeholder="School, city, or email" /></label>
+          <label>Province<select value={filters.province_id} onChange={(event) => updateFilter("province_id", event.target.value)}><option value="">All provinces</option>{provinces.map((province) => <option key={province.id} value={province.id}>{province.name}</option>)}</select></label>
+          <label>Status<select value={filters.status} onChange={(event) => updateFilter("status", event.target.value)}><option value="">All statuses</option>{affiliationStatuses.map((status) => <option key={status} value={status}>{status}</option>)}</select></label>
+          <div className="row-actions">
+            <button className="primary-button compact" onClick={() => loadSchools(token)} type="button">Apply filters</button>
+            <button className="secondary-button compact" onClick={() => { setFilters({ search: "", province_id: "", status: "" }); window.setTimeout(() => loadSchools(token), 0); }} type="button">Clear</button>
+          </div>
+          <p className="small-note">Showing {schools.length} of {pagination.total} schools.</p>
+        </div>
+      </section>
+
+      <section className="content-shell">
         <section className="admin-form">
           <div className="row-actions" style={{ justifyContent: "space-between" }}>
             <div>
@@ -413,6 +441,11 @@ export default function SchoolsClient() {
           </article>
         ))}
       </section>
+      {pagination.has_more ? (
+        <section className="content-shell">
+          <button className="secondary-button" disabled={busy} onClick={() => loadSchools(token, pagination.page + 1, true)} type="button">Load more schools</button>
+        </section>
+      ) : null}
 
       <section className="section-title">
         <h2>{editingId ? "Edit school" : "Add school"}</h2>

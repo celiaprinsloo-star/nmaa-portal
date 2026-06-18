@@ -38,13 +38,33 @@ export default function StudentsClient() {
   const [form, setForm] = useState(emptyStudent);
   const [selectedSchoolName, setSelectedSchoolName] = useState("");
   const [canManageStudents, setCanManageStudents] = useState(false);
+  const [filters, setFilters] = useState({
+    search: "",
+    school_id: "",
+    status: "",
+    gender: "",
+    race: "",
+    rank: "",
+  });
+  const [pagination, setPagination] = useState({ page: 1, page_size: 25, total: 0, has_more: false });
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
-  async function loadStudents(activeToken: string) {
+  async function loadStudents(activeToken: string, page = 1, append = false) {
     const params = new URLSearchParams(window.location.search);
     const requestedSchoolId = params.get("school_id");
-    const response = await fetch(requestedSchoolId ? `/api/students?school_id=${encodeURIComponent(requestedSchoolId)}` : "/api/students", {
+    const query = new URLSearchParams();
+    query.set("page", String(page));
+    query.set("page_size", "25");
+    const activeSchoolId = requestedSchoolId || filters.school_id;
+    if (activeSchoolId) query.set("school_id", activeSchoolId);
+    if (filters.search) query.set("search", filters.search);
+    if (filters.status) query.set("status", filters.status);
+    if (filters.gender) query.set("gender", filters.gender);
+    if (filters.race) query.set("race", filters.race);
+    if (filters.rank) query.set("rank", filters.rank);
+
+    const response = await fetch(`/api/students?${query.toString()}`, {
       headers: { Authorization: `Bearer ${activeToken}` },
     });
     const payload = await response.json();
@@ -54,10 +74,11 @@ export default function StudentsClient() {
       return;
     }
 
-    setStudents(payload.students);
+    setStudents((current) => (append ? [...current, ...payload.students] : payload.students));
     setSchools(payload.schools);
     setSelectedSchoolName(requestedSchoolId ? payload.schools[0]?.name ?? "" : "");
     setCanManageStudents(Boolean(payload.can_manage_students));
+    setPagination(payload.pagination ?? { page, page_size: 25, total: payload.students.length, has_more: false });
     setForm((current) => ({
       ...current,
       school_id: current.school_id || payload.schools[0]?.id || "",
@@ -85,6 +106,10 @@ export default function StudentsClient() {
 
   function updateField(field: keyof typeof emptyStudent, value: string) {
     setForm((current) => ({ ...current, [field]: value }));
+  }
+
+  function updateFilter(field: keyof typeof filters, value: string) {
+    setFilters((current) => ({ ...current, [field]: value }));
   }
 
   function resetForm() {
@@ -150,6 +175,62 @@ export default function StudentsClient() {
       return;
     }
 
+    await loadStudents(token);
+  }
+
+  function exportCsv() {
+    const header = ["School", "First name", "Last name", "Date of birth", "Gender", "Race", "Rank", "Status"];
+    const lines = students.map((student) =>
+      [
+        student.schools?.name ?? "",
+        student.first_name,
+        student.last_name,
+        student.date_of_birth ?? "",
+        student.gender ?? "",
+        student.race ?? "",
+        student.belt_rank ?? "",
+        student.membership_status,
+      ].map((value) => `"${String(value).replaceAll('"', '""')}"`).join(","),
+    );
+    const csv = [header.join(","), ...lines].join("\n");
+    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "students.csv";
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
+  async function importCsv(file: File | null) {
+    if (!file) return;
+    setBusy(true);
+    setError("");
+
+    const text = await file.text();
+    const rows = text.split(/\r?\n/).map((line) => line.split(",").map((value) => value.replace(/^"|"$/g, "").replaceAll('""', '"'))).filter((row) => row.length > 1);
+    const [, ...dataRows] = rows;
+    const defaultSchoolId = filters.school_id || schools[0]?.id || form.school_id;
+
+    for (const row of dataRows) {
+      const [schoolName, firstName, lastName, dateOfBirth, gender, race, rank, status] = row;
+      const matchedSchool = schools.find((school) => school.name.toLowerCase() === String(schoolName ?? "").trim().toLowerCase());
+      await fetch("/api/students", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          school_id: matchedSchool?.id || defaultSchoolId,
+          first_name: firstName,
+          last_name: lastName,
+          date_of_birth: dateOfBirth,
+          gender,
+          race,
+          belt_rank: rank || "White",
+          membership_status: status || "active",
+        }),
+      });
+    }
+
+    setBusy(false);
     await loadStudents(token);
   }
 
@@ -244,6 +325,25 @@ export default function StudentsClient() {
         </form>
         ) : null}
 
+        <section className="admin-form">
+          <h2>Find students</h2>
+          <label>Search<input value={filters.search} onChange={(event) => updateFilter("search", event.target.value)} placeholder="Name" /></label>
+          {!selectedSchoolName ? (
+            <label>School<select value={filters.school_id} onChange={(event) => updateFilter("school_id", event.target.value)}><option value="">All schools</option>{schools.map((school) => <option key={school.id} value={school.id}>{school.name}</option>)}</select></label>
+          ) : null}
+          <label>Status<select value={filters.status} onChange={(event) => updateFilter("status", event.target.value)}><option value="">All statuses</option><option value="active">active</option><option value="pending">pending</option><option value="inactive">inactive</option><option value="cancelled">cancelled</option></select></label>
+          <label>Gender<select value={filters.gender} onChange={(event) => updateFilter("gender", event.target.value)}><option value="">All genders</option><option value="male">Male</option><option value="female">Female</option><option value="other">Other</option></select></label>
+          <label>Race<select value={filters.race} onChange={(event) => updateFilter("race", event.target.value)}><option value="">All race groups</option><option value="White">White</option><option value="Black">Black</option><option value="Coloured">Coloured</option><option value="Indian">Indian</option><option value="Asian">Asian</option><option value="Other">Other</option></select></label>
+          <label>Rank<select value={filters.rank} onChange={(event) => updateFilter("rank", event.target.value)}><option value="">All ranks</option>{beltRanks.map((rank) => <option key={rank} value={rank}>{rank}</option>)}</select></label>
+          <div className="row-actions">
+            <button className="primary-button compact" onClick={() => loadStudents(token)} type="button">Apply filters</button>
+            <button className="secondary-button compact" onClick={() => { setFilters({ search: "", school_id: "", status: "", gender: "", race: "", rank: "" }); window.setTimeout(() => loadStudents(token), 0); }} type="button">Clear</button>
+            <button className="secondary-button compact" onClick={exportCsv} type="button">Export CSV</button>
+            {canManageStudents ? <label className="secondary-button compact">Import CSV<input accept=".csv" style={{ display: "none" }} type="file" onChange={(event) => importCsv(event.target.files?.[0] ?? null)} /></label> : null}
+          </div>
+          <p className="small-note">Showing {students.length} of {pagination.total} students.</p>
+        </section>
+
         <section className="table-list">
           {students.length === 0 ? (
             <article className="empty-state">No students yet.</article>
@@ -274,6 +374,11 @@ export default function StudentsClient() {
             ))
           )}
         </section>
+        {pagination.has_more ? (
+          <section className="content-shell">
+            <button className="secondary-button" disabled={busy} onClick={() => loadStudents(token, pagination.page + 1, true)} type="button">Load more students</button>
+          </section>
+        ) : null}
       </section>
     </main>
   );

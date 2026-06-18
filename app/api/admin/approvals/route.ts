@@ -38,5 +38,6 @@ export async function GET(request: Request) {
     profiles: profilesResult.data,
     provinces: provincesResult.data,
     schools: schoolsResult.data,
+    admin_role: user.profile.role,
   });
 }

@@ -11,6 +11,7 @@ type ApprovalPayload = {
   profiles: Profile[];
   provinces: Province[];
   schools: School[];
+  admin_role?: string;
 };
 
 export default function ApprovalsClient() {
@@ -86,6 +87,10 @@ export default function ApprovalsClient() {
     await loadApprovals(token);
   }
 
+  const assignableRoles = data.admin_role === "super_admin"
+    ? roles
+    : roles.filter((role) => role !== "super_admin" && role !== "national_admin");
+
   return (
     <main className="app-page">
       <header className="page-header">
@@ -124,7 +129,7 @@ export default function ApprovalsClient() {
               <label>
                 Role
                 <select name="role" defaultValue={profile.requested_role}>
-                  {roles.map((role) => (
+                  {assignableRoles.map((role) => (
                     <option key={role} value={role}>
                       {role.replaceAll("_", " ")}
                     </option>

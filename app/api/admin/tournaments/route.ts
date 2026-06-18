@@ -27,7 +27,7 @@ export async function GET(request: Request) {
       .order("starts_at", { ascending: false }),
     supabase
       .from("tournament_entries")
-      .select("id,tournament_id,student_id,school_id,category,placement,result_label,medal,points,status,students(first_name,last_name,belt_rank),schools(name),tournaments(name)")
+      .select("id,tournament_id,student_id,school_id,category,result_label,medal,points,status,students(first_name,last_name,belt_rank),schools(name),tournaments(name)")
       .order("created_at", { ascending: false }),
     supabase.from("provinces").select("id,name,code").order("name"),
     supabase

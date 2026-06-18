@@ -4,6 +4,8 @@ import { createSupabaseAdminClient } from "@/lib/supabaseAdmin";
 function cleanBookingBody(body: Record<string, unknown> | null) {
   return {
     event_id: String(body?.event_id ?? "").trim(),
+    student_id: String(body?.student_id ?? "").trim() || null,
+    instructor_id: String(body?.instructor_id ?? "").trim() || null,
     attendee_name: String(body?.attendee_name ?? "").trim(),
     attendee_email: String(body?.attendee_email ?? "").trim() || null,
     attendee_phone: String(body?.attendee_phone ?? "").trim() || null,
@@ -40,13 +42,29 @@ export async function GET(request: Request) {
     eventsQuery,
     supabase
       .from("event_bookings")
-      .select("id,event_id,profile_id,school_id,attendee_name,attendee_email,attendee_phone,attendee_type,notes,status,created_at,events(title,starts_at),schools(name)")
+      .select("id,event_id,profile_id,school_id,student_id,instructor_id,attendee_name,attendee_email,attendee_phone,attendee_type,notes,status,created_at,events(title,starts_at),schools(name),students(first_name,last_name),instructors(full_name)")
       .eq("school_id", user.profile.school_id)
       .order("created_at", { ascending: false }),
+  ]);
+  const [studentsResult, instructorsResult] = await Promise.all([
+    supabase
+      .from("students")
+      .select("id,school_id,first_name,last_name,belt_rank")
+      .eq("school_id", user.profile.school_id)
+      .eq("membership_status", "active")
+      .order("last_name"),
+    supabase
+      .from("instructors")
+      .select("id,school_id,full_name,email,phone")
+      .eq("school_id", user.profile.school_id)
+      .eq("active", true)
+      .order("full_name"),
   ]);
 
   if (eventsResult.error) return Response.json({ error: eventsResult.error.message }, { status: 400 });
   if (bookingsResult.error) return Response.json({ error: bookingsResult.error.message }, { status: 400 });
+  if (studentsResult.error) return Response.json({ error: studentsResult.error.message }, { status: 400 });
+  if (instructorsResult.error) return Response.json({ error: instructorsResult.error.message }, { status: 400 });
 
   const events = eventsResult.data.map((event) => ({
     ...event,
@@ -56,6 +74,8 @@ export async function GET(request: Request) {
   return Response.json({
     events,
     bookings: bookingsResult.data,
+    students: studentsResult.data,
+    instructors: instructorsResult.data,
     can_create_events: user.profile.role === "school_owner",
   });
 }
@@ -79,6 +99,26 @@ export async function POST(request: Request) {
   const supabase = createSupabaseAdminClient();
   if (!(await canAccessSchool(supabase, user, user.profile.school_id))) {
     return Response.json({ error: "You cannot add attendees for this school." }, { status: 403 });
+  }
+
+  if (booking.student_id) {
+    const { data: student } = await supabase
+      .from("students")
+      .select("id")
+      .eq("id", booking.student_id)
+      .eq("school_id", user.profile.school_id)
+      .maybeSingle();
+    if (!student) return Response.json({ error: "Selected student is not in your school." }, { status: 403 });
+  }
+
+  if (booking.instructor_id) {
+    const { data: instructor } = await supabase
+      .from("instructors")
+      .select("id")
+      .eq("id", booking.instructor_id)
+      .eq("school_id", user.profile.school_id)
+      .maybeSingle();
+    if (!instructor) return Response.json({ error: "Selected instructor is not in your school." }, { status: 403 });
   }
 
   const [{ data: school }, { data: selectedEvent, error: eventError }] = await Promise.all([
@@ -123,7 +163,7 @@ export async function POST(request: Request) {
       school_id: user.profile.school_id,
       status: "booked",
     })
-    .select("id,event_id,profile_id,school_id,attendee_name,attendee_email,attendee_phone,attendee_type,notes,status,created_at,events(title,starts_at),schools(name)")
+    .select("id,event_id,profile_id,school_id,student_id,instructor_id,attendee_name,attendee_email,attendee_phone,attendee_type,notes,status,created_at,events(title,starts_at),schools(name),students(first_name,last_name),instructors(full_name)")
     .single();
 
   if (error) return Response.json({ error: error.message }, { status: 400 });

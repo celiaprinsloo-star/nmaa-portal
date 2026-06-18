@@ -37,6 +37,7 @@ const cardSets: Record<UserRole, DashboardCard[]> = {
     { title: "Portal documents", description: "Upload constitution and shared school resources.", href: "/admin/documents" },
     { title: "Events", description: "Coordinate national and provincial events.", href: "/admin/events" },
     { title: "Tournaments", description: "Manage tournaments and entries.", href: "/admin/tournaments" },
+    { title: "Audit logs", description: "Review important portal changes and admin actions.", href: "/admin/audit-logs" },
     { title: "Reports", description: "Reporting will be added in the next feature pass." },
   ],
   national_admin: [
@@ -50,6 +51,7 @@ const cardSets: Record<UserRole, DashboardCard[]> = {
     { title: "Portal documents", description: "Upload constitution and shared school resources.", href: "/admin/documents" },
     { title: "Events", description: "Coordinate national and provincial events.", href: "/admin/events" },
     { title: "Tournaments", description: "Manage tournaments and entries.", href: "/admin/tournaments" },
+    { title: "Audit logs", description: "Review important portal changes and admin actions.", href: "/admin/audit-logs" },
     { title: "Reports", description: "Reporting will be added in the next feature pass." },
   ],
   provincial_admin: [

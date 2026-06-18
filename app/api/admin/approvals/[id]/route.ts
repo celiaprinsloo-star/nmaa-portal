@@ -1,4 +1,5 @@
 import { requireAdmin } from "@/lib/server/requireAdmin";
+import { logAuditEvent } from "@/lib/server/audit";
 import { createSupabaseAdminClient } from "@/lib/supabaseAdmin";
 import { roles } from "@/lib/types";
 
@@ -34,6 +35,10 @@ export async function PATCH(request: Request, context: ApprovalRouteContext) {
     return Response.json({ error: "Select a valid role before approving." }, { status: 400 });
   }
 
+  if (action === "approve" && ["super_admin", "national_admin"].includes(role) && user.profile.role !== "super_admin") {
+    return Response.json({ error: "Only a super admin can assign super or national admin access." }, { status: 403 });
+  }
+
   const supabase = createSupabaseAdminClient();
 
   if (action === "reject") {
@@ -54,6 +59,15 @@ export async function PATCH(request: Request, context: ApprovalRouteContext) {
     if (error) {
       return Response.json({ error: error.message }, { status: 400 });
     }
+
+    await logAuditEvent({
+      actorId: user.id,
+      action: "profile.rejected",
+      entityTable: "profiles",
+      entityId: id,
+      summary: `Rejected portal access for profile ${id}`,
+      metadata: { rejection_reason: rejectionReason },
+    });
 
     return Response.json({ ok: true });
   }
@@ -93,6 +107,15 @@ export async function PATCH(request: Request, context: ApprovalRouteContext) {
       return Response.json({ error: memberError.message }, { status: 400 });
     }
   }
+
+  await logAuditEvent({
+    actorId: user.id,
+    action: "profile.approved",
+    entityTable: "profiles",
+    entityId: id,
+    summary: `Approved ${profile.full_name} as ${role}`,
+    metadata: { role, province_id: provinceId, school_id: schoolId },
+  });
 
   return Response.json({ ok: true, profile });
 }

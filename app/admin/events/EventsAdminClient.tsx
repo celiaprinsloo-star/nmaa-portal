@@ -48,6 +48,8 @@ export default function EventsAdminClient() {
   const [schools, setSchools] = useState<SchoolOption[]>([]);
   const [form, setForm] = useState(emptyEvent);
   const [editingId, setEditingId] = useState("");
+  const [attendeeFilters, setAttendeeFilters] = useState({ search: "", school_id: "", type: "" });
+  const [bookingsPagination, setBookingsPagination] = useState({ page: 1, page_size: 25, total: 0, has_more: false });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
@@ -58,8 +60,14 @@ export default function EventsAdminClient() {
     }, {});
   }, [bookings]);
 
-  async function loadEvents(activeToken: string) {
-    const response = await fetch("/api/admin/events", {
+  async function loadEvents(activeToken: string, page = 1, appendBookings = false) {
+    const query = new URLSearchParams();
+    query.set("page", String(page));
+    query.set("page_size", "25");
+    if (attendeeFilters.search) query.set("attendee_search", attendeeFilters.search);
+    if (attendeeFilters.school_id) query.set("attendee_school_id", attendeeFilters.school_id);
+    if (attendeeFilters.type) query.set("attendee_type", attendeeFilters.type);
+    const response = await fetch(`/api/admin/events?${query.toString()}`, {
       headers: { Authorization: `Bearer ${activeToken}` },
     });
     const payload = await response.json();
@@ -70,7 +78,8 @@ export default function EventsAdminClient() {
     }
 
     setEvents(payload.events ?? []);
-    setBookings(payload.bookings ?? []);
+    setBookings((current) => (appendBookings ? [...current, ...(payload.bookings ?? [])] : payload.bookings ?? []));
+    setBookingsPagination(payload.bookings_pagination ?? { page, page_size: 25, total: payload.bookings?.length ?? 0, has_more: false });
     setProvinces(payload.provinces ?? []);
     setSchools(payload.schools ?? []);
     setError("");
@@ -96,6 +105,10 @@ export default function EventsAdminClient() {
 
   function updateField(field: keyof typeof emptyEvent, value: string) {
     setForm((current) => ({ ...current, [field]: value }));
+  }
+
+  function updateAttendeeFilter(field: keyof typeof attendeeFilters, value: string) {
+    setAttendeeFilters((current) => ({ ...current, [field]: value }));
   }
 
   function resetForm() {
@@ -317,6 +330,17 @@ export default function EventsAdminClient() {
         <p>Schools add these from their own event page.</p>
       </section>
       <section className="content-shell table-list">
+        <div className="admin-form">
+          <h2>Find attendees</h2>
+          <label>Search<input value={attendeeFilters.search} onChange={(event) => updateAttendeeFilter("search", event.target.value)} placeholder="Name or email" /></label>
+          <label>School<select value={attendeeFilters.school_id} onChange={(event) => updateAttendeeFilter("school_id", event.target.value)}><option value="">All schools</option>{schools.map((school) => <option key={school.id} value={school.id}>{school.name}</option>)}</select></label>
+          <label>Type<select value={attendeeFilters.type} onChange={(event) => updateAttendeeFilter("type", event.target.value)}><option value="">All types</option><option value="student">Student</option><option value="instructor">Instructor</option><option value="parent">Parent</option><option value="guest">Guest</option></select></label>
+          <div className="row-actions">
+            <button className="primary-button compact" onClick={() => loadEvents(token)} type="button">Apply filters</button>
+            <button className="secondary-button compact" onClick={() => { setAttendeeFilters({ search: "", school_id: "", type: "" }); window.setTimeout(() => loadEvents(token), 0); }} type="button">Clear</button>
+          </div>
+          <p className="small-note">Showing {bookings.length} of {bookingsPagination.total} attendees.</p>
+        </div>
         {bookings.length === 0 ? (
           <article className="empty-state">No attendees added yet.</article>
         ) : (
@@ -336,6 +360,9 @@ export default function EventsAdminClient() {
             </article>
           ))
         )}
+        {bookingsPagination.has_more ? (
+          <button className="secondary-button" disabled={busy} onClick={() => loadEvents(token, bookingsPagination.page + 1, true)} type="button">Load more attendees</button>
+        ) : null}
       </section>
     </main>
   );

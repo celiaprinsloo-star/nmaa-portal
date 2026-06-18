@@ -1,4 +1,5 @@
 import { canAccessSchool, getAllowedSchoolIds, requireApprovedUser } from "@/lib/server/access";
+import { hasAdminAccess } from "@/lib/server/auth";
 import { createSupabaseAdminClient } from "@/lib/supabaseAdmin";
 
 const complianceBucket = "compliance-documents";
@@ -147,6 +148,11 @@ export async function POST(request: Request) {
   const formData = isMultipart ? await request.formData().catch(() => null) : null;
   const body = isMultipart ? null : await request.json().catch(() => null);
   const document = formData ? cleanDocumentForm(formData) : cleanDocumentBody(body);
+  const isAdmin = hasAdminAccess(user.profile.role);
+
+  if (!isAdmin) {
+    document.status = "submitted";
+  }
 
   if (!document.school_id || !document.document_name) {
     return Response.json({ error: "School and document name are required." }, { status: 400 });

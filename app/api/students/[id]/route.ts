@@ -1,5 +1,6 @@
 import { hasAdminAccess } from "@/lib/server/auth";
 import { canAccessSchool, requireApprovedUser } from "@/lib/server/access";
+import { logAuditEvent } from "@/lib/server/audit";
 import { createSupabaseAdminClient } from "@/lib/supabaseAdmin";
 
 type StudentRouteContext = {
@@ -61,6 +62,15 @@ export async function PATCH(request: Request, context: StudentRouteContext) {
     return Response.json({ error: error.message }, { status: 400 });
   }
 
+  await logAuditEvent({
+    actorId: user.id,
+    action: "student.updated",
+    entityTable: "students",
+    entityId: id,
+    summary: `Updated student ${data.first_name} ${data.last_name}`,
+    metadata: { school_id: data.school_id },
+  });
+
   return Response.json({ student: data });
 }
 
@@ -88,6 +98,14 @@ export async function DELETE(request: Request, context: StudentRouteContext) {
   if (error) {
     return Response.json({ error: error.message }, { status: 400 });
   }
+
+  await logAuditEvent({
+    actorId: user.id,
+    action: "student.deleted",
+    entityTable: "students",
+    entityId: id,
+    summary: "Deleted student",
+  });
 
   return Response.json({ ok: true });
 }
