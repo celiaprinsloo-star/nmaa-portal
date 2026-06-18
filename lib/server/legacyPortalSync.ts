@@ -268,6 +268,10 @@ async function fetchLegacyCompetitionEntries(externalCompetitionId: string) {
   const json = await response.json().catch(() => null);
 
   if (!response.ok) {
+    if (response.status === 404) {
+      return null;
+    }
+
     throw new Error(json?.error || `Legacy entries fetch failed (${response.status}).`);
   }
 
@@ -395,6 +399,7 @@ export async function importLegacyPortalTournamentEntries() {
   let importedStudents = 0;
   let importedEntries = 0;
   let skippedEntries = 0;
+  let skippedCompetitions = 0;
   const syncedAt = new Date().toISOString();
 
   for (const tournament of (tournaments ?? []) as Array<TournamentRow & { external_source?: string | null; external_tournament_id?: string | null }>) {
@@ -403,6 +408,11 @@ export async function importLegacyPortalTournamentEntries() {
         ? tournament.external_tournament_id
         : tournament.id;
     const entries = await fetchLegacyCompetitionEntries(legacyCompetitionId);
+
+    if (entries === null) {
+      skippedCompetitions += 1;
+      continue;
+    }
 
     for (const entry of entries) {
       if (!entry.id || !entry.student_id) {
@@ -472,6 +482,7 @@ export async function importLegacyPortalTournamentEntries() {
     },
     skipped: {
       entries: skippedEntries,
+      competitions: skippedCompetitions,
     },
   };
 }

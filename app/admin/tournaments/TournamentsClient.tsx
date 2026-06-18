@@ -299,7 +299,9 @@ export default function TournamentsClient() {
     setSyncMessage(
       `Legacy entries imported: ${imported?.entries ?? 0} entries and ${
         imported?.students ?? 0
-      } student records. Skipped ${skipped?.entries ?? 0}.`
+      } student records. Skipped ${skipped?.entries ?? 0} entries and ${
+        skipped?.competitions ?? 0
+      } tournaments.`
     );
     await loadTournaments(token);
   }

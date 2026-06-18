@@ -297,6 +297,7 @@ export default function StudentsClient() {
           <SignOutButton />
         </div>
       </header>
+      {error ? <section className="content-shell"><p className="form-error">{error}</p></section> : null}
       {syncMessage ? <section className="content-shell"><p className="form-success">{syncMessage}</p></section> : null}
 
       <section className={canManageStudents ? "admin-workspace" : "content-shell"}>
