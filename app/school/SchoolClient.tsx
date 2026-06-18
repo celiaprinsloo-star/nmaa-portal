@@ -602,7 +602,15 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
           <section className="table-list">
             {instructors.map((instructor) => (
               <article className="list-row" key={instructor.id}>
-                <div><h2>{instructor.full_name}</h2><p>{instructor.rank ?? instructor.certification_level ?? "No rank"} | Collar {instructor.collar_level ?? "not recorded"} | {instructor.training_status} | Certified {instructor.certification_date ?? instructor.training_expires_at ?? "not recorded"}</p></div>
+                <div>
+                  <h2>{instructor.full_name}</h2>
+                  <dl className="detail-grid">
+                    <div><dt>Rank</dt><dd>{instructor.rank ?? instructor.certification_level ?? "No rank"}</dd></div>
+                    <div><dt>Collar</dt><dd>{instructor.collar_level ?? "Not recorded"}</dd></div>
+                    <div><dt>Training</dt><dd>{instructor.training_status}</dd></div>
+                    <div><dt>Certified</dt><dd>{instructor.certification_date ?? instructor.training_expires_at ?? "Not recorded"}</dd></div>
+                  </dl>
+                </div>
                 <button className="secondary-button compact" onClick={() => editInstructor(instructor)} type="button">Edit</button>
               </article>
             ))}
@@ -626,7 +634,11 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
               <article className="list-row" key={item.key}>
                 <div>
                   <h2>{item.label}</h2>
-                  <p>{item.owner} | {item.document?.status ?? "outstanding"} | {item.document?.file_name ?? "no file submitted"}</p>
+                  <dl className="detail-grid">
+                    <div><dt>Owner</dt><dd>{item.owner}</dd></div>
+                    <div><dt>Status</dt><dd>{item.document?.status ?? "Outstanding"}</dd></div>
+                    <div><dt>File</dt><dd>{item.document?.file_name ?? "No file submitted"}</dd></div>
+                  </dl>
                 </div>
                 <span className={`status-pill status-${item.document ? item.document.status : "pending"}`}>
                   {item.document ? "Submitted" : "Needed"}
@@ -650,7 +662,15 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
           <section className="table-list">
             {documents.map((document) => (
               <article className="list-row" key={document.id}>
-                <div><h2>{document.document_name}</h2><p>{document.compliance_requirements?.name ?? "General"} | {document.status} | {document.file_name ?? "no file"} | {document.expires_at ?? "no expiry"}</p></div>
+                <div>
+                  <h2>{document.document_name}</h2>
+                  <dl className="detail-grid">
+                    <div><dt>Requirement</dt><dd>{document.compliance_requirements?.name ?? "General"}</dd></div>
+                    <div><dt>Status</dt><dd>{document.status}</dd></div>
+                    <div><dt>File</dt><dd>{document.file_name ?? "No file"}</dd></div>
+                    <div><dt>Expiry</dt><dd>{document.expires_at ?? "No expiry"}</dd></div>
+                  </dl>
+                </div>
                 <button className="secondary-button compact" onClick={() => editDocument(document)} type="button">Edit</button>
               </article>
             ))}
@@ -680,7 +700,15 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
           <section className="table-list">
             {entries.map((entry) => (
               <article className="list-row" key={entry.id}>
-                <div><h2>{entry.students?.first_name} {entry.students?.last_name}</h2><p>{entry.tournaments?.name ?? "Tournament"} | {entry.category ?? "No category"} | {entry.medal || entry.result_label || "entered"}</p></div>
+                <div>
+                  <h2>{entry.students?.first_name} {entry.students?.last_name}</h2>
+                  <dl className="detail-grid">
+                    <div><dt>Tournament</dt><dd>{entry.tournaments?.name ?? "Tournament"}</dd></div>
+                    <div><dt>Category</dt><dd>{entry.category ?? "No category"}</dd></div>
+                    <div><dt>Result</dt><dd>{entry.medal || entry.result_label || "Entered"}</dd></div>
+                    <div><dt>Points</dt><dd>{entry.points ?? 0}</dd></div>
+                  </dl>
+                </div>
                 <button className="secondary-button compact" onClick={() => editPlacement(entry)} type="button">Edit</button>
               </article>
             ))}
@@ -791,7 +819,15 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
         <section className="table-list">
           {documents.map((document) => (
             <article className="list-row" key={document.id}>
-              <div><h2>{document.document_name}</h2><p>{document.compliance_requirements?.name ?? "General"} | {document.status} | {document.file_name ?? "no file"} | {document.expires_at ?? "no expiry"}</p></div>
+              <div>
+                <h2>{document.document_name}</h2>
+                <dl className="detail-grid">
+                  <div><dt>Requirement</dt><dd>{document.compliance_requirements?.name ?? "General"}</dd></div>
+                  <div><dt>Status</dt><dd>{document.status}</dd></div>
+                  <div><dt>File</dt><dd>{document.file_name ?? "No file"}</dd></div>
+                  <div><dt>Expiry</dt><dd>{document.expires_at ?? "No expiry"}</dd></div>
+                </dl>
+              </div>
               <button className="secondary-button compact" onClick={() => editDocument(document)} type="button">Edit</button>
             </article>
           ))}
@@ -813,7 +849,15 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
         <section className="table-list">
           {entries.map((entry) => (
             <article className="list-row" key={entry.id}>
-              <div><h2>{entry.students?.first_name} {entry.students?.last_name}</h2><p>{entry.tournaments?.name ?? "Tournament"} | {entry.category ?? "No category"} | {entry.medal || entry.result_label || "entered"}</p></div>
+              <div>
+                <h2>{entry.students?.first_name} {entry.students?.last_name}</h2>
+                <dl className="detail-grid">
+                  <div><dt>Tournament</dt><dd>{entry.tournaments?.name ?? "Tournament"}</dd></div>
+                  <div><dt>Category</dt><dd>{entry.category ?? "No category"}</dd></div>
+                  <div><dt>Result</dt><dd>{entry.medal || entry.result_label || "Entered"}</dd></div>
+                  <div><dt>Points</dt><dd>{entry.points ?? 0}</dd></div>
+                </dl>
+              </div>
               <button className="secondary-button compact" onClick={() => editPlacement(entry)} type="button">Edit</button>
             </article>
           ))}
@@ -824,7 +868,15 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
       <section className="content-shell table-list instructor-list-block">
         {instructors.map((instructor) => (
           <article className="list-row" key={instructor.id}>
-            <div><h2>{instructor.full_name}</h2><p>{instructor.rank ?? instructor.certification_level ?? "No rank"} | Collar {instructor.collar_level ?? "not recorded"} | {instructor.training_status} | Certified {instructor.certification_date ?? instructor.training_expires_at ?? "not recorded"}</p></div>
+            <div>
+              <h2>{instructor.full_name}</h2>
+              <dl className="detail-grid">
+                <div><dt>Rank</dt><dd>{instructor.rank ?? instructor.certification_level ?? "No rank"}</dd></div>
+                <div><dt>Collar</dt><dd>{instructor.collar_level ?? "Not recorded"}</dd></div>
+                <div><dt>Training</dt><dd>{instructor.training_status}</dd></div>
+                <div><dt>Certified</dt><dd>{instructor.certification_date ?? instructor.training_expires_at ?? "Not recorded"}</dd></div>
+              </dl>
+            </div>
             <button className="secondary-button compact" onClick={() => editInstructor(instructor)} type="button">Edit</button>
           </article>
         ))}

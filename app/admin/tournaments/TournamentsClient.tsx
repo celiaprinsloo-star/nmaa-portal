@@ -280,7 +280,13 @@ export default function TournamentsClient() {
             <article className="list-row" key={row.school_id}>
               <div>
                 <h2>{index + 1}. {row.school_name}</h2>
-                <p>{row.points} points | Gold {row.gold} | Silver {row.silver} | Bronze {row.bronze} | {row.entries} entries</p>
+                <dl className="detail-grid">
+                  <div><dt>Points</dt><dd>{row.points}</dd></div>
+                  <div><dt>Gold</dt><dd>{row.gold}</dd></div>
+                  <div><dt>Silver</dt><dd>{row.silver}</dd></div>
+                  <div><dt>Bronze</dt><dd>{row.bronze}</dd></div>
+                  <div><dt>Entries</dt><dd>{row.entries}</dd></div>
+                </dl>
               </div>
             </article>
           ))
@@ -371,7 +377,11 @@ export default function TournamentsClient() {
           <article className="list-row" key={tournament.id}>
             <div>
               <h2>{tournament.name}</h2>
-              <p>{tournament.provinces?.name ?? "National"} | {tournament.venue ?? "No venue"} | {new Date(tournament.starts_at).toLocaleDateString()}</p>
+              <dl className="detail-grid">
+                <div><dt>Province</dt><dd>{tournament.provinces?.name ?? "National"}</dd></div>
+                <div><dt>Venue</dt><dd>{tournament.venue ?? "No venue"}</dd></div>
+                <div><dt>Date</dt><dd>{new Date(tournament.starts_at).toLocaleDateString()}</dd></div>
+              </dl>
             </div>
             <div className="row-actions">
               <button className="secondary-button compact" onClick={() => editTournament(tournament)} type="button">Edit</button>
@@ -386,7 +396,12 @@ export default function TournamentsClient() {
           <article className="list-row" key={entry.id}>
             <div>
               <h2>{entry.students?.first_name} {entry.students?.last_name}</h2>
-              <p>{entry.tournaments?.name ?? "Tournament"} | {entry.category ?? "No category"} | {entry.medal || entry.result_label || "entered"}</p>
+              <dl className="detail-grid">
+                <div><dt>Tournament</dt><dd>{entry.tournaments?.name ?? "Tournament"}</dd></div>
+                <div><dt>Category</dt><dd>{entry.category ?? "No category"}</dd></div>
+                <div><dt>Result</dt><dd>{entry.medal || entry.result_label || "Entered"}</dd></div>
+                <div><dt>Points</dt><dd>{entry.points ?? 0}</dd></div>
+              </dl>
             </div>
             <div className="row-actions">
               <button className="secondary-button compact" onClick={() => editEntry(entry)} type="button">Edit</button>

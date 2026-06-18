@@ -252,7 +252,13 @@ export default function StudentsClient() {
               <article className="list-row" key={student.id}>
                 <div>
                   <h2>{student.first_name} {student.last_name}</h2>
-                  <p>{student.schools?.name ?? "No school"} | {student.belt_rank ?? "No rank"} | {student.gender ?? "gender not recorded"} | {student.race ?? "race not recorded"} | {student.membership_status}</p>
+                  <dl className="detail-grid">
+                    <div><dt>School</dt><dd>{student.schools?.name ?? "No school"}</dd></div>
+                    <div><dt>Rank</dt><dd>{student.belt_rank ?? "No rank"}</dd></div>
+                    <div><dt>Gender</dt><dd>{student.gender ?? "Not recorded"}</dd></div>
+                    <div><dt>Race</dt><dd>{student.race ?? "Not recorded"}</dd></div>
+                    <div><dt>Status</dt><dd>{student.membership_status}</dd></div>
+                  </dl>
                 </div>
                 {canManageStudents ? (
                 <div className="row-actions">

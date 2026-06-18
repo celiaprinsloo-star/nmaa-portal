@@ -182,9 +182,13 @@ export default function ComplianceClient() {
             <article className="list-row" key={document.id}>
               <div>
                 <h2>{document.document_name}</h2>
-                <p>
-                  {documentOwner(document)} | {document.schools?.name ?? "No school"} | {document.compliance_requirements?.name ?? "General"} | {document.status} | {document.expires_at ?? "no expiry"}
-                </p>
+                <dl className="detail-grid">
+                  <div><dt>Owner</dt><dd>{documentOwner(document)}</dd></div>
+                  <div><dt>School</dt><dd>{document.schools?.name ?? "No school"}</dd></div>
+                  <div><dt>Requirement</dt><dd>{document.compliance_requirements?.name ?? "General"}</dd></div>
+                  <div><dt>Status</dt><dd>{document.status}</dd></div>
+                  <div><dt>Expiry</dt><dd>{document.expires_at ?? "No expiry"}</dd></div>
+                </dl>
               </div>
               <div className="row-actions">
                 {document.file_name ? <span className="status-pill">{document.file_name}</span> : null}
@@ -252,7 +256,11 @@ export default function ComplianceClient() {
             <article className="list-row" key={requirement.id}>
               <div>
                 <h2>{requirement.name}</h2>
-                <p>{requirement.category} | {requirement.applies_to} | {requirement.renewal_period_months ?? "no"} month renewal</p>
+                <dl className="detail-grid">
+                  <div><dt>Category</dt><dd>{requirement.category}</dd></div>
+                  <div><dt>Applies to</dt><dd>{requirement.applies_to}</dd></div>
+                  <div><dt>Renewal</dt><dd>{requirement.renewal_period_months ?? "No"} months</dd></div>
+                </dl>
               </div>
               <div className="row-actions">
                 <button className="secondary-button compact" onClick={() => editRequirement(requirement)} type="button">

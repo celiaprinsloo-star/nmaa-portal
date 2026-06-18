@@ -300,8 +300,12 @@ export default function OrdersAdminClient() {
             <article className="order-admin-card" key={order.id}>
               <div className="order-admin-header">
                 <div>
-                  <h2>{order.schools?.name ?? "School"} | Order {order.id.slice(0, 8)}</h2>
-                  <p>{new Date(order.created_at).toLocaleString()} | {order.contact_name ?? "No contact"} | {order.contact_email ?? order.schools?.contact_email ?? "No email"}</p>
+                  <h2>{order.schools?.name ?? "School"} - Order {order.id.slice(0, 8)}</h2>
+                  <dl className="detail-grid">
+                    <div><dt>Date</dt><dd>{new Date(order.created_at).toLocaleString()}</dd></div>
+                    <div><dt>Contact</dt><dd>{order.contact_name ?? "No contact"}</dd></div>
+                    <div><dt>Email</dt><dd>{order.contact_email ?? order.schools?.contact_email ?? "No email"}</dd></div>
+                  </dl>
                 </div>
                 <span className={`status-pill status-${order.status}`}>{order.status}</span>
               </div>

@@ -76,9 +76,13 @@ export default function InstructorsClient() {
             <article className="list-row" key={instructor.id}>
               <div>
                 <h2>{instructor.full_name}</h2>
-                <p>
-                  {instructor.schools?.name ?? schools.find((school) => school.id === instructor.school_id)?.name ?? "No school"} | {instructor.rank ?? instructor.certification_level ?? "No rank"} | Collar {instructor.collar_level ?? "not recorded"} | {instructor.training_status} | Certified {instructor.certification_date ?? instructor.training_expires_at ?? "not recorded"}
-                </p>
+                <dl className="detail-grid">
+                  <div><dt>School</dt><dd>{instructor.schools?.name ?? schools.find((school) => school.id === instructor.school_id)?.name ?? "No school"}</dd></div>
+                  <div><dt>Rank</dt><dd>{instructor.rank ?? instructor.certification_level ?? "No rank"}</dd></div>
+                  <div><dt>Collar</dt><dd>{instructor.collar_level ?? "Not recorded"}</dd></div>
+                  <div><dt>Training</dt><dd>{instructor.training_status}</dd></div>
+                  <div><dt>Certified</dt><dd>{instructor.certification_date ?? instructor.training_expires_at ?? "Not recorded"}</dd></div>
+                </dl>
               </div>
               <span className={`status-pill status-${instructor.active ? "active" : "suspended"}`}>
                 {instructor.active ? "active" : "inactive"}

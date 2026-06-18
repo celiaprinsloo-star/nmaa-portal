@@ -110,7 +110,10 @@ export default function DocumentsAdminClient() {
               <article className="list-row" key={document.id}>
                 <div>
                   <h2>{document.title}</h2>
-                  <p>{document.file_name} | {document.category}</p>
+                  <dl className="detail-grid">
+                    <div><dt>File</dt><dd>{document.file_name}</dd></div>
+                    <div><dt>Category</dt><dd>{document.category}</dd></div>
+                  </dl>
                 </div>
                 {document.signed_url ? <a className="secondary-button compact" href={document.signed_url} target="_blank">View</a> : null}
               </article>

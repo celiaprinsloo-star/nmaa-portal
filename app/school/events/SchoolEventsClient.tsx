@@ -334,8 +334,13 @@ export default function SchoolEventsClient() {
             <article className="list-row" key={booking.id}>
               <div>
                 <h2>{booking.attendee_name}</h2>
-                <p>{booking.events?.title ?? "Event"} | {booking.attendee_type ?? "attendee"} | {booking.status}</p>
-                <p className="muted">{booking.attendee_email || "No email"} | {booking.attendee_phone || "No phone"}</p>
+                <dl className="detail-grid">
+                  <div><dt>Event</dt><dd>{booking.events?.title ?? "Event"}</dd></div>
+                  <div><dt>Type</dt><dd>{booking.attendee_type ?? "Attendee"}</dd></div>
+                  <div><dt>Status</dt><dd>{booking.status}</dd></div>
+                  <div><dt>Email</dt><dd>{booking.attendee_email || "No email"}</dd></div>
+                  <div><dt>Phone</dt><dd>{booking.attendee_phone || "No phone"}</dd></div>
+                </dl>
               </div>
               <button className="danger-button compact" disabled={busy} onClick={() => deleteBooking(booking.id)} type="button">Remove</button>
             </article>

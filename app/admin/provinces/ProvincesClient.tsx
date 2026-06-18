@@ -152,7 +152,12 @@ export default function ProvincesClient() {
             <article className="list-row" key={province.id}>
               <div>
                 <h2>{province.name}</h2>
-                <p>{province.code} | {province.school_count ?? 0} schools | {province.student_count ?? 0} students | {province.active_student_count ?? 0} active</p>
+                <dl className="detail-grid">
+                  <div><dt>Code</dt><dd>{province.code}</dd></div>
+                  <div><dt>Schools</dt><dd>{province.school_count ?? 0}</dd></div>
+                  <div><dt>Students</dt><dd>{province.student_count ?? 0}</dd></div>
+                  <div><dt>Active students</dt><dd>{province.active_student_count ?? 0}</dd></div>
+                </dl>
               </div>
               <div className="row-actions">
                 <button className="secondary-button compact" onClick={() => editProvince(province)} type="button">

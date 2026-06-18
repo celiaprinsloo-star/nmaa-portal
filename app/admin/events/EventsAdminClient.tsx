@@ -324,10 +324,13 @@ export default function EventsAdminClient() {
             <article className="list-row" key={booking.id}>
               <div>
                 <h2>{booking.attendee_name}</h2>
-                <p>
-                  {booking.events?.title ?? "Event"} | {booking.schools?.name ?? "No school"} | {booking.attendee_type ?? "attendee"}
-                </p>
-                <p className="muted">{booking.attendee_email || "No email"} | {booking.attendee_phone || "No phone"}</p>
+                <dl className="detail-grid">
+                  <div><dt>Event</dt><dd>{booking.events?.title ?? "Event"}</dd></div>
+                  <div><dt>School</dt><dd>{booking.schools?.name ?? "No school"}</dd></div>
+                  <div><dt>Type</dt><dd>{booking.attendee_type ?? "Attendee"}</dd></div>
+                  <div><dt>Email</dt><dd>{booking.attendee_email || "No email"}</dd></div>
+                  <div><dt>Phone</dt><dd>{booking.attendee_phone || "No phone"}</dd></div>
+                </dl>
               </div>
               <span className={`status-pill status-${booking.status}`}>{booking.status}</span>
             </article>

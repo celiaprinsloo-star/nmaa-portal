@@ -382,7 +382,10 @@ export default function SchoolsClient() {
               </div>
               <div>
                 <h2>{school.name}</h2>
-                <p>{school.provinces?.name ?? "No province"} | {school.city ?? "No city"}</p>
+                <dl className="detail-grid">
+                  <div><dt>Province</dt><dd>{school.provinces?.name ?? "No province"}</dd></div>
+                  <div><dt>City</dt><dd>{school.city ?? "No city"}</dd></div>
+                </dl>
                 <span className={`status-pill status-${school.affiliation_status}`}>{school.affiliation_status}</span>
               </div>
               <div className="row-actions">

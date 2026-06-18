@@ -29,7 +29,8 @@ const cardSets: Record<UserRole, DashboardCard[]> = {
   super_admin: [
     { title: "Approvals", description: "Review pending users and assign access.", href: "/admin/approvals" },
     { title: "Schools", description: "Manage school records and affiliation status.", href: "/admin/schools" },
-    { title: "Students", description: "Add students, ranks, and membership status.", href: "/students" },
+    { title: "Students", description: "View students, ranks, and membership status.", href: "/students" },
+    { title: "Instructors", description: "Review instructor rank, collar level, and certification status.", href: "/instructors" },
     { title: "Provinces", description: "Maintain the national province structure.", href: "/admin/provinces" },
     { title: "Compliance", description: "Track submissions, expiry dates, and requirements.", href: "/admin/compliance" },
     { title: "Orders", description: "Process school uniform, gear, patch, and belt orders.", href: "/admin/orders" },
@@ -42,6 +43,7 @@ const cardSets: Record<UserRole, DashboardCard[]> = {
     { title: "Approvals", description: "Review pending users and assign access.", href: "/admin/approvals" },
     { title: "Schools", description: "Manage school records and affiliation status.", href: "/admin/schools" },
     { title: "Students", description: "Add students, ranks, and membership status.", href: "/students" },
+    { title: "Instructors", description: "Review instructor rank, collar level, and certification status.", href: "/instructors" },
     { title: "Provinces", description: "Maintain the national province structure.", href: "/admin/provinces" },
     { title: "Compliance", description: "Track submissions, expiry dates, and requirements.", href: "/admin/compliance" },
     { title: "Orders", description: "Process school uniform, gear, patch, and belt orders.", href: "/admin/orders" },

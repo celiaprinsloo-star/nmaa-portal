@@ -330,7 +330,12 @@ export default function OrderingClient() {
             <article className="list-row" key={order.id}>
               <div>
                 <h2>Order {order.id.slice(0, 8)}</h2>
-                <p>{new Date(order.created_at).toLocaleDateString()} | {money(Number(order.total_zar), "ZAR")} | ${Number(order.total_usd).toFixed(2)} | {order.school_order_items?.length ?? 0} lines</p>
+                <dl className="detail-grid">
+                  <div><dt>Date</dt><dd>{new Date(order.created_at).toLocaleDateString()}</dd></div>
+                  <div><dt>Total ZAR</dt><dd>{money(Number(order.total_zar), "ZAR")}</dd></div>
+                  <div><dt>Total USD</dt><dd>${Number(order.total_usd).toFixed(2)}</dd></div>
+                  <div><dt>Lines</dt><dd>{order.school_order_items?.length ?? 0}</dd></div>
+                </dl>
                 {order.admin_notes ? <p>{order.admin_notes}</p> : null}
               </div>
               <span className={`status-pill status-${order.status}`}>{order.status}</span>
