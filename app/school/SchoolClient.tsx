@@ -23,7 +23,7 @@ type StudentOption = Pick<Student, "id" | "school_id" | "first_name" | "last_nam
   schools?: { name: string } | null;
 };
 
-type SchoolSection = "overview" | "details" | "instructors" | "compliance" | "placements";
+type SchoolSection = "overview" | "details" | "instructors" | "compliance" | "results";
 
 type SchoolClientProps = {
   section?: SchoolSection;
@@ -80,7 +80,7 @@ const emptyDocument = {
   expires_at: "",
 };
 
-const emptyPlacement = {
+const emptyResult = {
   tournament_id: "",
   student_id: "",
   school_id: "",
@@ -107,8 +107,8 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
   const [entries, setEntries] = useState<TournamentEntry[]>([]);
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
   const [students, setStudents] = useState<StudentOption[]>([]);
-  const [placementForm, setPlacementForm] = useState(emptyPlacement);
-  const [editingPlacementId, setEditingPlacementId] = useState("");
+  const [resultForm, setResultForm] = useState(emptyResult);
+  const [editingResultId, setEditingResultId] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [logoBusy, setLogoBusy] = useState(false);
@@ -117,7 +117,7 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
     const headers = { Authorization: `Bearer ${activeToken}` };
     const needsInstructors = ["overview", "instructors", "compliance"].includes(section);
     const needsDocuments = ["overview", "compliance"].includes(section);
-    const needsPlacements = ["overview", "placements"].includes(section);
+    const needsResults = ["overview", "results"].includes(section);
     const needsStudents = ["overview", "details"].includes(section);
 
     const schoolRes = await fetch("/api/school", { headers });
@@ -128,7 +128,7 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
       return;
     }
 
-    const [instructorsPayload, documentsPayload, placementsPayload, studentsPayload] = await Promise.all([
+    const [instructorsPayload, documentsPayload, resultsPayload, studentsPayload] = await Promise.all([
       needsInstructors
         ? fetch("/api/instructors", { headers }).then(async (response) => ({
             ok: response.ok,
@@ -141,7 +141,7 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
             payload: await response.json(),
           }))
         : Promise.resolve({ ok: true, payload: { documents: [], requirements: [], instructors: [] } }),
-      needsPlacements
+      needsResults
         ? fetch("/api/tournament-entries", { headers }).then(async (response) => ({
             ok: response.ok,
             payload: await response.json(),
@@ -155,11 +155,11 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
         : Promise.resolve({ ok: true, payload: { students: [] } }),
     ]);
 
-    if (!instructorsPayload.ok || !documentsPayload.ok || !placementsPayload.ok || !studentsPayload.ok) {
+    if (!instructorsPayload.ok || !documentsPayload.ok || !resultsPayload.ok || !studentsPayload.ok) {
       setError(
         instructorsPayload.payload.error ??
           documentsPayload.payload.error ??
-          placementsPayload.payload.error ??
+          resultsPayload.payload.error ??
           studentsPayload.payload.error ??
           "Unable to load school workspace.",
       );
@@ -181,9 +181,9 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
     setDocuments(documentsPayload.payload.documents);
     setRequirements(documentsPayload.payload.requirements);
     setDocumentInstructors(documentsPayload.payload.instructors);
-    setEntries(placementsPayload.payload.entries);
-    setTournaments(placementsPayload.payload.tournaments);
-    setStudents(placementsPayload.payload.students);
+    setEntries(resultsPayload.payload.entries);
+    setTournaments(resultsPayload.payload.tournaments);
+    setStudents(resultsPayload.payload.students);
     setSchoolStudents(studentsPayload.payload.students);
     setInstructorForm((current) => ({ ...current, school_id: activeSchool.id }));
     setDocumentForm((current) => ({
@@ -191,11 +191,11 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
       school_id: activeSchool.id,
       requirement_id: current.requirement_id || documentsPayload.payload.requirements[0]?.id || "",
     }));
-    setPlacementForm((current) => ({
+    setResultForm((current) => ({
       ...current,
-      tournament_id: current.tournament_id || placementsPayload.payload.tournaments[0]?.id || "",
-      student_id: current.student_id || placementsPayload.payload.students[0]?.id || "",
-      school_id: current.school_id || placementsPayload.payload.students[0]?.school_id || activeSchool.id,
+      tournament_id: current.tournament_id || resultsPayload.payload.tournaments[0]?.id || "",
+      student_id: current.student_id || resultsPayload.payload.students[0]?.id || "",
+      school_id: current.school_id || resultsPayload.payload.students[0]?.school_id || activeSchool.id,
     }));
     setError("");
   }, [section]);
@@ -230,10 +230,10 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
     setDocumentForm((current) => ({ ...current, [field]: value }));
   }
 
-  function updatePlacementField(field: keyof typeof emptyPlacement, value: string) {
+  function updateResultField(field: keyof typeof emptyResult, value: string) {
     if (field === "student_id") {
       const selectedStudent = students.find((student) => student.id === value);
-      setPlacementForm((current) => ({
+      setResultForm((current) => ({
         ...current,
         student_id: value,
         school_id: selectedStudent?.school_id || school?.id || "",
@@ -241,7 +241,7 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
       return;
     }
 
-    setPlacementForm((current) => ({ ...current, [field]: value }));
+    setResultForm((current) => ({ ...current, [field]: value }));
   }
 
   async function saveSchool(event: FormEvent<HTMLFormElement>) {
@@ -376,17 +376,17 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
     setDocumentFile(null);
   }
 
-  async function savePlacement(event: FormEvent<HTMLFormElement>) {
+  async function saveResult(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setBusy(true);
     setError("");
 
     const response = await fetch(
-      editingPlacementId ? `/api/tournament-entries/${editingPlacementId}` : "/api/tournament-entries",
+      editingResultId ? `/api/tournament-entries/${editingResultId}` : "/api/tournament-entries",
       {
-        method: editingPlacementId ? "PATCH" : "POST",
+        method: editingResultId ? "PATCH" : "POST",
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-        body: JSON.stringify(placementForm),
+        body: JSON.stringify(resultForm),
       },
     );
     const payload = await response.json();
@@ -397,9 +397,9 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
       return;
     }
 
-    setEditingPlacementId("");
-    setPlacementForm({
-      ...emptyPlacement,
+    setEditingResultId("");
+    setResultForm({
+      ...emptyResult,
       tournament_id: tournaments[0]?.id || "",
       student_id: students[0]?.id || "",
       school_id: students[0]?.school_id || school?.id || "",
@@ -407,9 +407,9 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
     await loadAll(token);
   }
 
-  function editPlacement(entry: TournamentEntry) {
-    setEditingPlacementId(entry.id);
-    setPlacementForm({
+  function editResult(entry: TournamentEntry) {
+    setEditingResultId(entry.id);
+    setResultForm({
       tournament_id: entry.tournament_id,
       student_id: entry.student_id,
       school_id: entry.school_id,
@@ -425,7 +425,7 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
     details: "School information",
     instructors: "Instructors",
     compliance: "Compliance documents",
-    placements: "Tournament results",
+    results: "Tournament results",
   }[section];
 
   const sectionDescription = {
@@ -433,7 +433,7 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
     details: "Update your school contact and registration information.",
     instructors: "Manage instructor details, certification, and training status.",
     compliance: "Record safeguarding, first aid, NQF, and instructor training documents.",
-    placements: "Add entries and results for your school's students.",
+    results: "Add entries and results for your school's students.",
   }[section];
 
   const currentYear = new Date().getFullYear();
@@ -680,21 +680,21 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
     );
   }
 
-  if (section === "placements") {
+  if (section === "results") {
     return (
       <main className="app-page">
         {renderHeader()}
         {errorBlock}
         <section className="two-column-workspace">
-          <form className="admin-form" onSubmit={savePlacement}>
-            <h2>{editingPlacementId ? "Edit result" : "Add result"}</h2>
-            <label>Tournament<select value={placementForm.tournament_id} onChange={(event) => updatePlacementField("tournament_id", event.target.value)} required>{tournaments.map((tournament) => <option key={tournament.id} value={tournament.id}>{tournament.name}</option>)}</select></label>
-            <label>Student<select value={placementForm.student_id} onChange={(event) => updatePlacementField("student_id", event.target.value)} required>{students.map((student) => <option key={student.id} value={student.id}>{student.first_name} {student.last_name}</option>)}</select></label>
-            <label>Category<select value={placementForm.category} onChange={(event) => updatePlacementField("category", event.target.value)} required><option value="">Select category</option>{tournamentCategories.map((category) => <option key={category} value={category}>{category}</option>)}</select></label>
-            <label>Result<select value={placementForm.medal} onChange={(event) => updatePlacementField("medal", event.target.value)}>{tournamentResults.map((result) => <option key={result} value={result}>{result}</option>)}</select></label>
-            <p className="small-note">Points will be calculated automatically: {tournamentPointsForResult(placementForm.medal) ?? 0} points.</p>
-            <label>Result note<input value={placementForm.result_label} onChange={(event) => updatePlacementField("result_label", event.target.value)} /></label>
-            <button className="primary-button compact" disabled={busy || tournaments.length === 0 || students.length === 0} type="submit">{editingPlacementId ? "Save result" : "Add result"}</button>
+          <form className="admin-form" onSubmit={saveResult}>
+            <h2>{editingResultId ? "Edit result" : "Add result"}</h2>
+            <label>Tournament<select value={resultForm.tournament_id} onChange={(event) => updateResultField("tournament_id", event.target.value)} required>{tournaments.map((tournament) => <option key={tournament.id} value={tournament.id}>{tournament.name}</option>)}</select></label>
+            <label>Student<select value={resultForm.student_id} onChange={(event) => updateResultField("student_id", event.target.value)} required>{students.map((student) => <option key={student.id} value={student.id}>{student.first_name} {student.last_name}</option>)}</select></label>
+            <label>Category<select value={resultForm.category} onChange={(event) => updateResultField("category", event.target.value)} required><option value="">Select category</option>{tournamentCategories.map((category) => <option key={category} value={category}>{category}</option>)}</select></label>
+            <label>Result<select value={resultForm.medal} onChange={(event) => updateResultField("medal", event.target.value)}>{tournamentResults.map((result) => <option key={result} value={result}>{result}</option>)}</select></label>
+            <p className="small-note">Points will be calculated automatically: {tournamentPointsForResult(resultForm.medal) ?? 0} points.</p>
+            <label>Result note<input value={resultForm.result_label} onChange={(event) => updateResultField("result_label", event.target.value)} /></label>
+            <button className="primary-button compact" disabled={busy || tournaments.length === 0 || students.length === 0} type="submit">{editingResultId ? "Save result" : "Add result"}</button>
           </form>
 
           <section className="table-list">
@@ -709,7 +709,7 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
                     <div><dt>Points</dt><dd>{entry.points ?? 0}</dd></div>
                   </dl>
                 </div>
-                <button className="secondary-button compact" onClick={() => editPlacement(entry)} type="button">Edit</button>
+                <button className="secondary-button compact" onClick={() => editResult(entry)} type="button">Edit</button>
               </article>
             ))}
           </section>
@@ -834,17 +834,17 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
         </section>
       </section>
 
-      <section className="section-title placements-block"><h2>Tournament Results</h2><p>Add entries and results for your school&apos;s students.</p></section>
-      <section className="two-column-workspace placements-block">
-        <form className="admin-form" onSubmit={savePlacement}>
-          <h2>{editingPlacementId ? "Edit result" : "Add result"}</h2>
-          <label>Tournament<select value={placementForm.tournament_id} onChange={(event) => updatePlacementField("tournament_id", event.target.value)} required>{tournaments.map((tournament) => <option key={tournament.id} value={tournament.id}>{tournament.name}</option>)}</select></label>
-          <label>Student<select value={placementForm.student_id} onChange={(event) => updatePlacementField("student_id", event.target.value)} required>{students.map((student) => <option key={student.id} value={student.id}>{student.first_name} {student.last_name}</option>)}</select></label>
-          <label>Category<select value={placementForm.category} onChange={(event) => updatePlacementField("category", event.target.value)} required><option value="">Select category</option>{tournamentCategories.map((category) => <option key={category} value={category}>{category}</option>)}</select></label>
-          <label>Result<select value={placementForm.medal} onChange={(event) => updatePlacementField("medal", event.target.value)}>{tournamentResults.map((result) => <option key={result} value={result}>{result}</option>)}</select></label>
-          <p className="small-note">Points will be calculated automatically: {tournamentPointsForResult(placementForm.medal) ?? 0} points.</p>
-          <label>Result note<input value={placementForm.result_label} onChange={(event) => updatePlacementField("result_label", event.target.value)} /></label>
-          <button className="primary-button compact" disabled={busy || tournaments.length === 0 || students.length === 0} type="submit">{editingPlacementId ? "Save result" : "Add result"}</button>
+      <section className="section-title results-block"><h2>Tournament Results</h2><p>Add entries and results for your school&apos;s students.</p></section>
+      <section className="two-column-workspace results-block">
+        <form className="admin-form" onSubmit={saveResult}>
+          <h2>{editingResultId ? "Edit result" : "Add result"}</h2>
+          <label>Tournament<select value={resultForm.tournament_id} onChange={(event) => updateResultField("tournament_id", event.target.value)} required>{tournaments.map((tournament) => <option key={tournament.id} value={tournament.id}>{tournament.name}</option>)}</select></label>
+          <label>Student<select value={resultForm.student_id} onChange={(event) => updateResultField("student_id", event.target.value)} required>{students.map((student) => <option key={student.id} value={student.id}>{student.first_name} {student.last_name}</option>)}</select></label>
+          <label>Category<select value={resultForm.category} onChange={(event) => updateResultField("category", event.target.value)} required><option value="">Select category</option>{tournamentCategories.map((category) => <option key={category} value={category}>{category}</option>)}</select></label>
+          <label>Result<select value={resultForm.medal} onChange={(event) => updateResultField("medal", event.target.value)}>{tournamentResults.map((result) => <option key={result} value={result}>{result}</option>)}</select></label>
+          <p className="small-note">Points will be calculated automatically: {tournamentPointsForResult(resultForm.medal) ?? 0} points.</p>
+          <label>Result note<input value={resultForm.result_label} onChange={(event) => updateResultField("result_label", event.target.value)} /></label>
+          <button className="primary-button compact" disabled={busy || tournaments.length === 0 || students.length === 0} type="submit">{editingResultId ? "Save result" : "Add result"}</button>
         </form>
         <section className="table-list">
           {entries.map((entry) => (
@@ -858,7 +858,7 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
                   <div><dt>Points</dt><dd>{entry.points ?? 0}</dd></div>
                 </dl>
               </div>
-              <button className="secondary-button compact" onClick={() => editPlacement(entry)} type="button">Edit</button>
+              <button className="secondary-button compact" onClick={() => editResult(entry)} type="button">Edit</button>
             </article>
           ))}
         </section>
@@ -884,3 +884,4 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
     </main>
   );
 }
+

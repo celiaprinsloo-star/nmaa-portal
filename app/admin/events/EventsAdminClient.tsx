@@ -101,6 +101,8 @@ export default function EventsAdminClient() {
     }
 
     loadSession();
+    // The initial session load should run once; filters reload through the page controls.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   function updateField(field: keyof typeof emptyEvent, value: string) {

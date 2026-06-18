@@ -1,5 +1,6 @@
-import SchoolClient from "../SchoolClient";
+import { redirect } from "next/navigation";
 
-export default function SchoolPlacementsPage() {
-  return <SchoolClient section="placements" />;
+export default function SchoolLegacyResultsPage() {
+  redirect("/school/results");
 }
+

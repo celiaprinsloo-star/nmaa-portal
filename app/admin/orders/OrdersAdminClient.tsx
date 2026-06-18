@@ -139,6 +139,8 @@ export default function OrdersAdminClient() {
     }
 
     loadSession();
+    // The initial session load should run once; filters reload through the page controls.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function updateOrder(orderId: string) {
