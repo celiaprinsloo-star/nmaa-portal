@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import BrandMark from "@/app/components/BrandMark";
 import SignOutButton from "@/app/components/SignOutButton";
 import { createSupabaseBrowserClient } from "@/lib/supabaseClient";
@@ -59,6 +59,7 @@ export default function StudentsClient() {
   const [error, setError] = useState("");
   const [syncMessage, setSyncMessage] = useState("");
   const [busy, setBusy] = useState(false);
+  const studentFormRef = useRef<HTMLFormElement | null>(null);
 
   async function loadStudents(activeToken: string, page = 1, append = false) {
     const params = new URLSearchParams(window.location.search);
@@ -145,6 +146,9 @@ export default function StudentsClient() {
       belt_rank: student.belt_rank ?? "White",
       membership_status: student.membership_status,
     });
+    window.setTimeout(() => {
+      studentFormRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 0);
   }
 
   async function saveStudent(event: FormEvent<HTMLFormElement>) {
@@ -306,7 +310,7 @@ export default function StudentsClient() {
 
       <section className={canManageStudents ? "admin-workspace" : "content-shell"}>
         {canManageStudents ? (
-        <form className="admin-form" onSubmit={saveStudent}>
+        <form className="admin-form" onSubmit={saveStudent} ref={studentFormRef}>
           <h2>{editingId ? "Edit student" : "Add student"}</h2>
           <label>
             School
@@ -390,12 +394,16 @@ export default function StudentsClient() {
           <label>Gender<select value={filters.gender} onChange={(event) => updateFilter("gender", event.target.value)}><option value="">All genders</option><option value="male">Male</option><option value="female">Female</option><option value="other">Other</option></select></label>
           <label>Race<select value={filters.race} onChange={(event) => updateFilter("race", event.target.value)}><option value="">All race groups</option><option value="White">White</option><option value="Black">Black</option><option value="Coloured">Coloured</option><option value="Indian">Indian</option><option value="Asian">Asian</option><option value="Other">Other</option></select></label>
           <label>Rank<select value={filters.rank} onChange={(event) => updateFilter("rank", event.target.value)}><option value="">All ranks</option>{beltRanks.map((rank) => <option key={rank} value={rank}>{rank}</option>)}</select></label>
-          <div className="row-actions">
-            <button className="primary-button compact" onClick={() => loadStudents(token)} type="button">Apply filters</button>
-            <button className="secondary-button compact" onClick={() => { setFilters({ search: "", school_id: "", status: "", gender: "", race: "", rank: "" }); window.setTimeout(() => loadStudents(token), 0); }} type="button">Clear</button>
-            <button className="secondary-button compact" onClick={exportCsv} type="button">Export CSV</button>
-            {canManageStudents ? <a className="secondary-button compact" download href="/sample-students-import.csv">Download sample CSV</a> : null}
-            {canManageStudents ? <label className="secondary-button compact">Import CSV<input accept=".csv" style={{ display: "none" }} type="file" onChange={(event) => importCsv(event.target.files?.[0] ?? null)} /></label> : null}
+          <div className="student-actions">
+            <div className="row-actions">
+              <button className="primary-button compact" onClick={() => loadStudents(token)} type="button">Apply filters</button>
+              <button className="secondary-button compact" onClick={() => { setFilters({ search: "", school_id: "", status: "", gender: "", race: "", rank: "" }); window.setTimeout(() => loadStudents(token), 0); }} type="button">Clear</button>
+            </div>
+            <div className="row-actions">
+              <button className="secondary-button compact" onClick={exportCsv} type="button">Export CSV</button>
+              {canManageStudents ? <a className="secondary-button compact" download href="/sample-students-import.csv">Download sample CSV</a> : null}
+              {canManageStudents ? <label className="secondary-button compact">Import CSV<input accept=".csv" style={{ display: "none" }} type="file" onChange={(event) => importCsv(event.target.files?.[0] ?? null)} /></label> : null}
+            </div>
           </div>
           {canManageStudents ? (
             <p className="small-note">
