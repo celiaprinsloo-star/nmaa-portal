@@ -390,8 +390,14 @@ export default function StudentsClient() {
             <button className="primary-button compact" onClick={() => loadStudents(token)} type="button">Apply filters</button>
             <button className="secondary-button compact" onClick={() => { setFilters({ search: "", school_id: "", status: "", gender: "", race: "", rank: "" }); window.setTimeout(() => loadStudents(token), 0); }} type="button">Clear</button>
             <button className="secondary-button compact" onClick={exportCsv} type="button">Export CSV</button>
+            {canManageStudents ? <a className="secondary-button compact" download href="/sample-students-import.csv">Download sample CSV</a> : null}
             {canManageStudents ? <label className="secondary-button compact">Import CSV<input accept=".csv" style={{ display: "none" }} type="file" onChange={(event) => importCsv(event.target.files?.[0] ?? null)} /></label> : null}
           </div>
+          {canManageStudents ? (
+            <p className="small-note">
+              Import columns must stay in this order: School, First name, Last name, Date of birth, Gender, Race, Rank, Status.
+            </p>
+          ) : null}
           <p className="small-note">Showing {students.length} of {pagination.total} students.</p>
         </section>
 
