@@ -112,6 +112,7 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [logoBusy, setLogoBusy] = useState(false);
+  const [todayTimestamp] = useState(() => Date.now());
 
   const loadAll = useCallback(async (activeToken: string) => {
     const headers = { Authorization: `Bearer ${activeToken}` };
@@ -497,6 +498,30 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
       ),
   ];
 
+  function formatTournamentDate(value: string) {
+    return new Date(value).toLocaleDateString("en-ZA", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+  }
+
+  const upcomingTournaments = tournaments
+    .filter((tournament) => new Date(tournament.starts_at).getTime() >= todayTimestamp)
+    .sort((a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime());
+
+  const resultGroups = tournaments
+    .map((tournament) => {
+      const tournamentEntries = entries.filter((entry) => entry.tournament_id === tournament.id);
+
+      return {
+        tournament,
+        entries: tournamentEntries,
+        points: tournamentEntries.reduce((total, entry) => total + Number(entry.points ?? 0), 0),
+      };
+    })
+    .filter((group) => group.entries.length > 0);
+
   function renderHeader() {
     return (
       <header className="page-header">
@@ -685,34 +710,95 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
       <main className="app-page">
         {renderHeader()}
         {errorBlock}
-        <section className="two-column-workspace">
-          <form className="admin-form" onSubmit={saveResult}>
-            <h2>{editingResultId ? "Edit result" : "Add result"}</h2>
-            <label>Tournament<select value={resultForm.tournament_id} onChange={(event) => updateResultField("tournament_id", event.target.value)} required>{tournaments.map((tournament) => <option key={tournament.id} value={tournament.id}>{tournament.name}</option>)}</select></label>
-            <label>Student<select value={resultForm.student_id} onChange={(event) => updateResultField("student_id", event.target.value)} required>{students.map((student) => <option key={student.id} value={student.id}>{student.first_name} {student.last_name}</option>)}</select></label>
-            <label>Category<select value={resultForm.category} onChange={(event) => updateResultField("category", event.target.value)} required><option value="">Select category</option>{tournamentCategories.map((category) => <option key={category} value={category}>{category}</option>)}</select></label>
-            <label>Result<select value={resultForm.medal} onChange={(event) => updateResultField("medal", event.target.value)}>{tournamentResults.map((result) => <option key={result} value={result}>{result}</option>)}</select></label>
-            <p className="small-note">Points will be calculated automatically: {tournamentPointsForResult(resultForm.medal) ?? 0} points.</p>
-            <label>Result note<input value={resultForm.result_label} onChange={(event) => updateResultField("result_label", event.target.value)} /></label>
-            <button className="primary-button compact" disabled={busy || tournaments.length === 0 || students.length === 0} type="submit">{editingResultId ? "Save result" : "Add result"}</button>
-          </form>
-
-          <section className="table-list">
-            {entries.map((entry) => (
-              <article className="list-row" key={entry.id}>
-                <div>
-                  <h2>{entry.students?.first_name} {entry.students?.last_name}</h2>
-                  <dl className="detail-grid">
-                    <div><dt>Tournament</dt><dd>{entry.tournaments?.name ?? "Tournament"}</dd></div>
-                    <div><dt>Category</dt><dd>{entry.category ?? "No category"}</dd></div>
-                    <div><dt>Result</dt><dd>{entry.result_label || entry.medal || "Entered"}</dd></div>
-                    <div><dt>Points</dt><dd>{entry.points ?? 0}</dd></div>
-                  </dl>
+        <section className="section-title">
+          <h2>Upcoming tournaments</h2>
+          <p>Tournaments open to schools for entries and results.</p>
+        </section>
+        <section className="tournament-card-grid">
+          {upcomingTournaments.length === 0 ? (
+            <article className="empty-state">No upcoming tournaments recorded yet.</article>
+          ) : (
+            upcomingTournaments.map((tournament) => (
+              <article className="tournament-card" key={tournament.id}>
+                <div className="tournament-card-header">
+                  <div>
+                    <h2>{tournament.name}</h2>
+                    <p>{tournament.venue ?? "No venue"}</p>
+                  </div>
+                  <span className="status-pill">{tournament.provinces?.name ?? "National"}</span>
                 </div>
-                <button className="secondary-button compact" onClick={() => editResult(entry)} type="button">Edit</button>
+                <dl className="tournament-mini-grid">
+                  <div><dt>Date</dt><dd>{formatTournamentDate(tournament.starts_at)}</dd></div>
+                  <div><dt>Entries close</dt><dd>{tournament.registration_closes_at ? formatTournamentDate(tournament.registration_closes_at) : "Not set"}</dd></div>
+                </dl>
               </article>
-            ))}
-          </section>
+            ))
+          )}
+        </section>
+
+        <section className="section-title">
+          <h2>{editingResultId ? "Edit result" : "Add result"}</h2>
+          <p>Select a tournament and student, then record the category and result.</p>
+        </section>
+        <form className="admin-form content-shell" onSubmit={saveResult}>
+          <label>Tournament<select value={resultForm.tournament_id} onChange={(event) => updateResultField("tournament_id", event.target.value)} required>{tournaments.map((tournament) => <option key={tournament.id} value={tournament.id}>{tournament.name}</option>)}</select></label>
+          <label>Student<select value={resultForm.student_id} onChange={(event) => updateResultField("student_id", event.target.value)} required>{students.map((student) => <option key={student.id} value={student.id}>{student.first_name} {student.last_name}</option>)}</select></label>
+          <label>Category<select value={resultForm.category} onChange={(event) => updateResultField("category", event.target.value)} required><option value="">Select category</option>{tournamentCategories.map((category) => <option key={category} value={category}>{category}</option>)}</select></label>
+          <label>Result<select value={resultForm.medal} onChange={(event) => updateResultField("medal", event.target.value)}>{tournamentResults.map((result) => <option key={result} value={result}>{result}</option>)}</select></label>
+          <p className="small-note">Points will be calculated automatically: {tournamentPointsForResult(resultForm.medal) ?? 0} points.</p>
+          <label>Result note<input value={resultForm.result_label} onChange={(event) => updateResultField("result_label", event.target.value)} /></label>
+          <button className="primary-button compact" disabled={busy || tournaments.length === 0 || students.length === 0} type="submit">{editingResultId ? "Save result" : "Add result"}</button>
+        </form>
+
+        <section className="section-title">
+          <h2>Your results by tournament</h2>
+          <p>Open a tournament to see and edit your school&apos;s recorded results.</p>
+        </section>
+        <section className="tournament-accordion-list">
+          {resultGroups.length === 0 ? (
+            <article className="empty-state">No tournament results recorded for your school yet.</article>
+          ) : (
+            resultGroups.map(({ tournament, entries: tournamentEntries, points }, index) => (
+              <details className="tournament-group" key={tournament.id} open={index === 0}>
+                <summary>
+                  <span>
+                    <strong>{tournament.name}</strong>
+                    <small>{formatTournamentDate(tournament.starts_at)} | {tournament.venue ?? "No venue"}</small>
+                  </span>
+                  <span className="tournament-summary-counts">
+                    <b>{tournamentEntries.length}</b> entries
+                    <b>{points}</b> points
+                  </span>
+                </summary>
+                <div className="responsive-table">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Student</th>
+                        <th>Rank</th>
+                        <th>Category</th>
+                        <th>Result</th>
+                        <th>Points</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {tournamentEntries.map((entry) => (
+                        <tr key={entry.id}>
+                          <td>{entry.students?.first_name} {entry.students?.last_name}</td>
+                          <td>{entry.students?.belt_rank ?? "No rank"}</td>
+                          <td>{entry.category ?? "No category"}</td>
+                          <td>{entry.result_label || entry.medal || "Entered"}</td>
+                          <td>{entry.points ?? 0}</td>
+                          <td><button className="secondary-button compact" onClick={() => editResult(entry)} type="button">Edit</button></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </details>
+            ))
+          )}
         </section>
       </main>
     );

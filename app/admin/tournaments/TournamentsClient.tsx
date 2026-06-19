@@ -149,7 +149,7 @@ export default function TournamentsClient() {
     });
   }
 
-  function editEntry(entry: TournamentEntry) {
+function editEntry(entry: TournamentEntry) {
     setEditingEntryId(entry.id);
     setEntryForm({
       tournament_id: entry.tournament_id,
@@ -161,6 +161,26 @@ export default function TournamentsClient() {
       status: entry.status,
     });
   }
+
+  function formatTournamentDate(value: string) {
+    return new Date(value).toLocaleDateString("en-ZA", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+  }
+
+  const tournamentGroups = tournaments.map((tournament) => {
+    const tournamentEntries = entries.filter((entry) => entry.tournament_id === tournament.id);
+    const points = tournamentEntries.reduce((total, entry) => total + Number(entry.points ?? 0), 0);
+
+    return {
+      tournament,
+      entries: tournamentEntries,
+      points,
+      results: tournamentEntries.filter((entry) => entry.medal || entry.result_label).length,
+    };
+  });
 
   async function saveTournament(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -466,17 +486,25 @@ export default function TournamentsClient() {
         </form>
       </section>
 
-      <section className="content-shell table-list">
-        {tournaments.map((tournament) => (
-          <article className="list-row" key={tournament.id}>
-            <div>
-              <h2>{tournament.name}</h2>
-              <dl className="detail-grid">
-                <div><dt>Province</dt><dd>{tournament.provinces?.name ?? "National"}</dd></div>
-                <div><dt>Venue</dt><dd>{tournament.venue ?? "No venue"}</dd></div>
-                <div><dt>Date</dt><dd>{new Date(tournament.starts_at).toLocaleDateString()}</dd></div>
-              </dl>
+      <section className="section-title">
+        <h2>Tournament register</h2>
+        <p>Quick overview of all tournaments and their imported results.</p>
+      </section>
+      <section className="tournament-card-grid">
+        {tournamentGroups.map(({ tournament, entries: tournamentEntries, points, results }) => (
+          <article className="tournament-card" key={tournament.id}>
+            <div className="tournament-card-header">
+              <div>
+                <h2>{tournament.name}</h2>
+                <p>{tournament.venue ?? "No venue"} | {formatTournamentDate(tournament.starts_at)}</p>
+              </div>
+              <span className="status-pill">{tournament.provinces?.name ?? "National"}</span>
             </div>
+            <dl className="tournament-mini-grid">
+              <div><dt>Entries</dt><dd>{tournamentEntries.length}</dd></div>
+              <div><dt>Results</dt><dd>{results}</dd></div>
+              <div><dt>Points</dt><dd>{points}</dd></div>
+            </dl>
             <div className="row-actions">
               <button className="secondary-button compact" onClick={() => editTournament(tournament)} type="button">Edit</button>
               <button className="danger-button compact" disabled={busy} onClick={() => deleteTournament(tournament.id)} type="button">Delete</button>
@@ -485,24 +513,64 @@ export default function TournamentsClient() {
         ))}
       </section>
 
-      <section className="content-shell table-list">
-        {entries.map((entry) => (
-          <article className="list-row" key={entry.id}>
-            <div>
-              <h2>{entry.students?.first_name} {entry.students?.last_name}</h2>
-              <dl className="detail-grid">
-                <div><dt>Tournament</dt><dd>{entry.tournaments?.name ?? "Tournament"}</dd></div>
-                <div><dt>Category</dt><dd>{entry.category ?? "No category"}</dd></div>
-                <div><dt>Result</dt><dd>{entry.result_label || entry.medal || "Entered"}</dd></div>
-                <div><dt>Points</dt><dd>{entry.points ?? 0}</dd></div>
-              </dl>
-            </div>
-            <div className="row-actions">
-              <button className="secondary-button compact" onClick={() => editEntry(entry)} type="button">Edit</button>
-              <button className="danger-button compact" disabled={busy} onClick={() => deleteEntry(entry.id)} type="button">Delete</button>
-            </div>
-          </article>
-        ))}
+      <section className="section-title">
+        <h2>Results by tournament</h2>
+        <p>Open a tournament to manage its students, categories, results, and points.</p>
+      </section>
+      <section className="tournament-accordion-list">
+        {tournamentGroups.length === 0 ? (
+          <article className="empty-state">No tournaments recorded yet.</article>
+        ) : (
+          tournamentGroups.map(({ tournament, entries: tournamentEntries, points }, index) => (
+            <details className="tournament-group" key={tournament.id} open={index === 0}>
+              <summary>
+                <span>
+                  <strong>{tournament.name}</strong>
+                  <small>{formatTournamentDate(tournament.starts_at)} | {tournament.venue ?? "No venue"}</small>
+                </span>
+                <span className="tournament-summary-counts">
+                  <b>{tournamentEntries.length}</b> entries
+                  <b>{points}</b> points
+                </span>
+              </summary>
+              {tournamentEntries.length === 0 ? (
+                <article className="empty-state">No results imported for this tournament yet.</article>
+              ) : (
+                <div className="responsive-table">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Student</th>
+                        <th>School</th>
+                        <th>Category</th>
+                        <th>Result</th>
+                        <th>Points</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {tournamentEntries.map((entry) => (
+                        <tr key={entry.id}>
+                          <td>{entry.students?.first_name} {entry.students?.last_name}</td>
+                          <td>{entry.schools?.name ?? "No school"}</td>
+                          <td>{entry.category ?? "No category"}</td>
+                          <td>{entry.result_label || entry.medal || "Entered"}</td>
+                          <td>{entry.points ?? 0}</td>
+                          <td>
+                            <div className="row-actions">
+                              <button className="secondary-button compact" onClick={() => editEntry(entry)} type="button">Edit</button>
+                              <button className="danger-button compact" disabled={busy} onClick={() => deleteEntry(entry.id)} type="button">Delete</button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </details>
+          ))
+        )}
       </section>
     </main>
   );

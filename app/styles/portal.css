@@ -1333,6 +1333,187 @@ label {
   text-transform: uppercase;
 }
 
+.tournament-card-grid,
+.tournament-accordion-list {
+  width: min(1200px, 100%);
+  margin: 0 auto 18px;
+  display: grid;
+  gap: 16px;
+}
+
+.tournament-card-grid {
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+
+.tournament-card,
+.tournament-group {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-top: 4px solid var(--accent);
+  border-radius: 8px;
+  box-shadow: var(--shadow-card);
+}
+
+.tournament-card {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+}
+
+.tournament-card-header {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.tournament-card h2,
+.tournament-card p {
+  margin: 0;
+}
+
+.tournament-card h2 {
+  color: #111827;
+  font-size: 20px;
+}
+
+.tournament-card p,
+.tournament-group small {
+  color: var(--muted);
+}
+
+.tournament-mini-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 10px;
+  margin: 0;
+}
+
+.tournament-mini-grid div {
+  display: grid;
+  gap: 4px;
+  padding: 11px;
+  background: var(--panel-soft);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.tournament-mini-grid dt,
+.tournament-mini-grid dd {
+  margin: 0;
+}
+
+.tournament-mini-grid dt {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.tournament-mini-grid dd {
+  color: #111827;
+  font-size: 18px;
+  font-weight: 900;
+}
+
+.tournament-group {
+  overflow: hidden;
+}
+
+.tournament-group summary {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.tournament-group summary::-webkit-details-marker {
+  display: none;
+}
+
+.tournament-group summary::after {
+  content: "+";
+  display: grid;
+  place-items: center;
+  width: 28px;
+  aspect-ratio: 1;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-dark);
+  font-weight: 900;
+}
+
+.tournament-group[open] summary::after {
+  content: "-";
+}
+
+.tournament-group summary > span:first-child {
+  display: grid;
+  gap: 4px;
+}
+
+.tournament-group strong {
+  color: #111827;
+  font-size: 18px;
+}
+
+.tournament-summary-counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  align-items: center;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.tournament-summary-counts b {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  padding: 0 9px;
+  background: var(--panel-soft);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: #111827;
+}
+
+.responsive-table {
+  overflow-x: auto;
+  border-top: 1px solid var(--line);
+}
+
+.responsive-table table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 760px;
+}
+
+.responsive-table th,
+.responsive-table td {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: middle;
+}
+
+.responsive-table th {
+  background: var(--panel-soft);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.responsive-table td {
+  color: #111827;
+  font-size: 14px;
+  font-weight: 700;
+}
+
 .shop-product-card,
 .catalog-admin-card,
 .order-admin-card {
@@ -1423,7 +1604,9 @@ label {
   .catalog-admin-card,
   .order-admin-header,
   .order-admin-actions,
-  .order-admin-total {
+  .order-admin-total,
+  .tournament-card-header,
+  .tournament-group summary {
     display: grid;
     grid-template-columns: 1fr;
   }
