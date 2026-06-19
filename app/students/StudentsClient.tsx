@@ -9,8 +9,12 @@ import type { School, Student } from "@/lib/types";
 
 const beltRanks = [
   "White",
+  "White/Orange",
   "Orange",
+  "Orange/Yellow",
   "Yellow",
+  "Yellow/Camo",
+  "Camo",
   "Green",
   "Purple",
   "Blue",
