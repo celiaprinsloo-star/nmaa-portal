@@ -9,6 +9,8 @@ type TournamentRow = {
   starts_at: string;
   ends_at: string | null;
   registration_closes_at: string | null;
+  external_source?: string | null;
+  external_tournament_id?: string | null;
 };
 
 type EventRow = {
@@ -21,6 +23,8 @@ type EventRow = {
   ends_at: string | null;
   capacity: number | null;
   status: string | null;
+  external_source?: string | null;
+  external_event_id?: string | null;
 };
 
 type LegacyCompetition = {
@@ -219,6 +223,41 @@ function tournamentNaturalKey(tournament: Pick<TournamentRow, "name" | "venue" |
   ].join("|");
 }
 
+function legacyCompetitionExternalId(tournament: TournamentRow) {
+  return tournament.external_source === "legacy-portal" && tournament.external_tournament_id
+    ? tournament.external_tournament_id
+    : tournament.id;
+}
+
+function legacyEventExternalId(event: EventRow) {
+  return event.external_source === "legacy-portal" && event.external_event_id
+    ? event.external_event_id
+    : event.id;
+}
+
+function uniqueByNaturalKey<T>(items: T[], keyForItem: (item: T) => string, hasLegacyId: (item: T) => boolean) {
+  const grouped = new Map<string, T>();
+
+  for (const item of items) {
+    const key = keyForItem(item);
+    const existing = grouped.get(key);
+
+    if (!existing || (!hasLegacyId(existing) && hasLegacyId(item))) {
+      grouped.set(key, item);
+    }
+  }
+
+  return Array.from(grouped.values());
+}
+
+function legacyCompetitionNaturalKey(competition: Pick<LegacyCompetition, "name" | "location" | "comp_date">) {
+  return [
+    normalizeTextForMatch(competition.name),
+    normalizeTextForMatch(competition.location),
+    dateForMatch(competition.comp_date),
+  ].join("|");
+}
+
 async function sendToLegacyPortal(payload: unknown) {
   const response = await fetch(schoolPortalSyncUrl(), {
     method: "POST",
@@ -366,11 +405,11 @@ export async function syncLegacyPortalCalendar() {
   const [tournamentsResult, eventsResult] = await Promise.all([
     supabase
       .from("tournaments")
-      .select("id,name,venue,starts_at,ends_at,registration_closes_at")
+      .select("id,name,venue,starts_at,ends_at,registration_closes_at,external_source,external_tournament_id")
       .order("starts_at", { ascending: true }),
     supabase
       .from("events")
-      .select("id,title,event_type,description,venue,starts_at,ends_at,capacity,status")
+      .select("id,title,event_type,description,venue,starts_at,ends_at,capacity,status,external_source,external_event_id")
       .order("starts_at", { ascending: true }),
   ]);
 
@@ -384,15 +423,17 @@ export async function syncLegacyPortalCalendar() {
 
   const tournaments = (tournamentsResult.data ?? []) as TournamentRow[];
   const events = (eventsResult.data ?? []) as EventRow[];
-  const uniqueTournaments = Array.from(
-    new Map(tournaments.map((tournament) => [tournamentNaturalKey(tournament), tournament])).values()
+  const uniqueTournaments = uniqueByNaturalKey(
+    tournaments,
+    tournamentNaturalKey,
+    (tournament) => Boolean(tournament.external_tournament_id)
   );
 
   return sendToLegacyPortal({
     source: "nmaa-portal",
     organization_name: "NMAA",
     competitions: uniqueTournaments.map((tournament) => ({
-      external_id: tournament.id,
+      external_id: legacyCompetitionExternalId(tournament),
       name: tournament.name,
       comp_date: dateOnly(tournament.starts_at),
       location: tournament.venue,
@@ -401,7 +442,7 @@ export async function syncLegacyPortalCalendar() {
         : null,
     })),
     events: events.map((event) => ({
-      external_id: event.id,
+      external_id: legacyEventExternalId(event),
       title: event.title,
       event_date: dateOnly(event.starts_at),
       start_time: timeOnly(event.starts_at),
@@ -542,8 +583,12 @@ export async function importLegacyPortalCalendar() {
   let importedTournaments = 0;
   let skippedTournaments = 0;
 
-  const validCompetitions = competitions.filter(
-    (competition) => competition.id && competition.name && competition.comp_date
+  const validCompetitions = Array.from(
+    new Map(
+      competitions
+        .filter((competition) => competition.id && competition.name && competition.comp_date)
+        .map((competition) => [legacyCompetitionNaturalKey(competition), competition])
+    ).values()
   );
 
   const { data: existingTournamentRows, error: existingTournamentError } = await supabase
@@ -568,7 +613,6 @@ export async function importLegacyPortalCalendar() {
     );
     const naturalMatch = existingTournaments.find(
       (tournament) =>
-        !tournament.external_tournament_id &&
         normalizeTextForMatch(tournament.name) === normalizeTextForMatch(name) &&
         dateForMatch(tournament.starts_at) === dateForMatch(date) &&
         normalizeTextForMatch(tournament.venue) === normalizeTextForMatch(venue)
@@ -587,12 +631,29 @@ export async function importLegacyPortalCalendar() {
     };
 
     const result = matchedId
-      ? await supabase.from("tournaments").update(row).eq("id", matchedId)
-      : await supabase.from("tournaments").insert(row);
+      ? await supabase
+          .from("tournaments")
+          .update(row)
+          .eq("id", matchedId)
+          .select("id,name,venue,starts_at,external_source,external_tournament_id")
+          .single()
+      : await supabase
+          .from("tournaments")
+          .insert(row)
+          .select("id,name,venue,starts_at,external_source,external_tournament_id")
+          .single();
 
     if (result.error) {
       skippedTournaments += 1;
       continue;
+    }
+
+    const savedTournament = result.data;
+    const existingIndex = existingTournaments.findIndex((tournament) => tournament.id === savedTournament.id);
+    if (existingIndex >= 0) {
+      existingTournaments[existingIndex] = savedTournament;
+    } else {
+      existingTournaments.push(savedTournament);
     }
 
     importedTournaments += 1;
