@@ -4,6 +4,20 @@ import { useSearchParams } from "next/navigation";
 import { FormEvent, useState } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabaseClient";
 
+const defaultPortalOrigin = "https://portal.nmaa-sa.co.za";
+
+function passwordResetOrigin() {
+  const configuredOrigin = process.env.NEXT_PUBLIC_PORTAL_URL || process.env.NEXT_PUBLIC_SITE_URL;
+  if (configuredOrigin) return configuredOrigin.replace(/\/$/, "");
+
+  const currentOrigin = window.location.origin;
+  if (currentOrigin.includes("localhost") || currentOrigin.includes("127.0.0.1")) {
+    return defaultPortalOrigin;
+  }
+
+  return currentOrigin;
+}
+
 export default function LoginForm() {
   const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
@@ -46,7 +60,7 @@ export default function LoginForm() {
     }
 
     const supabase = createSupabaseBrowserClient();
-    const redirectTo = `${window.location.origin}/reset-password`;
+    const redirectTo = `${passwordResetOrigin()}/reset-password`;
     const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo,
     });
