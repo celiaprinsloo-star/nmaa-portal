@@ -9,6 +9,7 @@ const roleLabels: Record<UserRole, string> = {
   provincial_admin: "Provincial admin",
   school_owner: "School owner",
   instructor: "Instructor",
+  hq_viewer: "HQ viewer",
 };
 
 export default function RegisterForm() {

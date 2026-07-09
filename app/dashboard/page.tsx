@@ -30,6 +30,7 @@ const cardSets: Record<UserRole, DashboardCard[]> = {
     { title: "Approvals", description: "Review pending users and assign access.", href: "/admin/approvals" },
     { title: "Schools", description: "Manage school records and affiliation status.", href: "/admin/schools" },
     { title: "Students", description: "View students, ranks, and membership status.", href: "/students" },
+    { title: "Statistics", description: "View national, province, and school totals.", href: "/statistics" },
     { title: "Instructors", description: "Review instructor rank, collar level, and certification status.", href: "/instructors" },
     { title: "Provinces", description: "Maintain the national province structure.", href: "/admin/provinces" },
     { title: "Compliance", description: "Track submissions, expiry dates, and requirements.", href: "/admin/compliance" },
@@ -44,6 +45,7 @@ const cardSets: Record<UserRole, DashboardCard[]> = {
     { title: "Approvals", description: "Review pending users and assign access.", href: "/admin/approvals" },
     { title: "Schools", description: "Manage school records and affiliation status.", href: "/admin/schools" },
     { title: "Students", description: "Add students, ranks, and membership status.", href: "/students" },
+    { title: "Statistics", description: "View national, province, and school totals.", href: "/statistics" },
     { title: "Instructors", description: "Review instructor rank, collar level, and certification status.", href: "/instructors" },
     { title: "Provinces", description: "Maintain the national province structure.", href: "/admin/provinces" },
     { title: "Compliance", description: "Track submissions, expiry dates, and requirements.", href: "/admin/compliance" },
@@ -74,6 +76,10 @@ const cardSets: Record<UserRole, DashboardCard[]> = {
     { title: "Events", description: "Add attendees for upcoming NMAA events.", href: "/school/events" },
     { title: "Tournament results", description: "Add student results for tournaments.", href: "/school/results" },
     { title: "Resources", description: "View the NMAA South Africa constitution and shared documents.", href: "/resources" },
+  ],
+  hq_viewer: [
+    { title: "Student data", description: "View and export national student data.", href: "/students" },
+    { title: "Statistics", description: "View totals by national, province, and school level.", href: "/statistics" },
   ],
 };
 

@@ -1,4 +1,3 @@
-import { hasAdminAccess } from "@/lib/server/auth";
 import { canAccessSchool, requireApprovedUser } from "@/lib/server/access";
 import { logAuditEvent } from "@/lib/server/audit";
 import { createSupabaseAdminClient } from "@/lib/supabaseAdmin";
@@ -27,8 +26,8 @@ export async function PATCH(request: Request, context: StudentRouteContext) {
     return response;
   }
 
-  if (hasAdminAccess(user.profile.role) || user.profile.role === "provincial_admin" || user.profile.role === "instructor") {
-    return Response.json({ error: "Admins can view student records but schools manage them." }, { status: 403 });
+  if (user.profile.role !== "school_owner") {
+    return Response.json({ error: "This role can view student records, but only school owners can manage them." }, { status: 403 });
   }
 
   const { id } = await context.params;
@@ -81,8 +80,8 @@ export async function DELETE(request: Request, context: StudentRouteContext) {
     return response;
   }
 
-  if (hasAdminAccess(user.profile.role) || user.profile.role === "provincial_admin" || user.profile.role === "instructor") {
-    return Response.json({ error: "Admins can view student records but schools manage them." }, { status: 403 });
+  if (user.profile.role !== "school_owner") {
+    return Response.json({ error: "This role can view student records, but only school owners can manage them." }, { status: 403 });
   }
 
   const { id } = await context.params;

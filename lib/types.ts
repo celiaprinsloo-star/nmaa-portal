@@ -4,6 +4,7 @@ export const roles = [
   "provincial_admin",
   "school_owner",
   "instructor",
+  "hq_viewer",
 ] as const;
 
 export type UserRole = (typeof roles)[number];

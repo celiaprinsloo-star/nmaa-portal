@@ -1,4 +1,3 @@
-import { hasAdminAccess } from "@/lib/server/auth";
 import { getAllowedSchoolIds, requireApprovedUser } from "@/lib/server/access";
 import { logAuditEvent } from "@/lib/server/audit";
 import { paginationFromUrl, paginationPayload } from "@/lib/server/pagination";
@@ -37,7 +36,16 @@ export async function GET(request: Request) {
   const race = url.searchParams.get("race")?.trim();
   const rank = url.searchParams.get("rank")?.trim();
   const { page, pageSize, from, to } = paginationFromUrl(request.url);
-  const { schoolIds, error: schoolError } = await getAllowedSchoolIds(supabase, user);
+  const { schoolIds, error: schoolError } = user.profile.role === "hq_viewer"
+    ? await supabase
+        .from("schools")
+        .select("id")
+        .order("name")
+        .then(({ data, error }) => ({
+          schoolIds: data?.map((school) => school.id) ?? [],
+          error: error?.message ?? null,
+        }))
+    : await getAllowedSchoolIds(supabase, user);
 
   if (schoolError) {
     return Response.json({ error: schoolError }, { status: 400 });
@@ -97,8 +105,8 @@ export async function POST(request: Request) {
     return response;
   }
 
-  if (hasAdminAccess(user.profile.role) || user.profile.role === "provincial_admin" || user.profile.role === "instructor") {
-    return Response.json({ error: "Admins can view student records but schools manage them." }, { status: 403 });
+  if (user.profile.role !== "school_owner") {
+    return Response.json({ error: "This role can view student records, but only school owners can manage them." }, { status: 403 });
   }
 
   const body = await request.json().catch(() => null);
