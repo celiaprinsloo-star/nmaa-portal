@@ -120,6 +120,7 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
   const [resultForm, setResultForm] = useState(emptyResult);
   const [editingResultId, setEditingResultId] = useState("");
   const [registrationForm, setRegistrationForm] = useState(emptyRegistration);
+  const [registrationCategories, setRegistrationCategories] = useState<string[]>([]);
   const [editingRegistrationId, setEditingRegistrationId] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -267,15 +268,33 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
   function updateRegistrationField(field: keyof typeof emptyRegistration, value: string) {
     if (field === "student_id") {
       const selectedStudent = students.find((student) => student.id === value);
+      setRegistrationCategories([]);
       setRegistrationForm((current) => ({
         ...current,
         student_id: value,
         school_id: selectedStudent?.school_id || school?.id || "",
+        category: "",
       }));
       return;
     }
 
+    if (field === "tournament_id") {
+      setRegistrationCategories([]);
+      setRegistrationForm((current) => ({ ...current, tournament_id: value, category: "" }));
+      return;
+    }
+
     setRegistrationForm((current) => ({ ...current, [field]: value }));
+  }
+
+  function toggleRegistrationCategory(category: string, checked: boolean) {
+    setRegistrationCategories((current) =>
+      checked ? [...new Set([...current, category])] : current.filter((item) => item !== category),
+    );
+    setRegistrationForm((current) => ({
+      ...current,
+      category: checked ? category : current.category === category ? "" : current.category,
+    }));
   }
 
   async function saveSchool(event: FormEvent<HTMLFormElement>) {
@@ -459,30 +478,58 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
     setBusy(true);
     setError("");
 
-    const registrationPayload = {
-      ...registrationForm,
-      medal: "",
-      result_label: "",
-      status: "registered",
-    };
+    const categoriesToRegister = editingRegistrationId
+      ? [registrationForm.category].filter(Boolean)
+      : registrationCategories.filter(
+          (category) =>
+            !entries.some(
+              (entry) =>
+                entry.tournament_id === registrationForm.tournament_id &&
+                entry.student_id === registrationForm.student_id &&
+                entry.category === category,
+            ),
+        );
 
-    const response = await fetch(
-      editingRegistrationId ? `/api/tournament-entries/${editingRegistrationId}` : "/api/tournament-entries",
-      {
-        method: editingRegistrationId ? "PATCH" : "POST",
-        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-        body: JSON.stringify(registrationPayload),
-      },
+    if (categoriesToRegister.length === 0) {
+      setBusy(false);
+      setError(editingRegistrationId ? "Select a tournament event." : "Select at least one new tournament event for this student.");
+      return;
+    }
+
+    const responses = await Promise.all(
+      categoriesToRegister.map(async (category) => {
+        const response = await fetch(
+          editingRegistrationId ? `/api/tournament-entries/${editingRegistrationId}` : "/api/tournament-entries",
+          {
+            method: editingRegistrationId ? "PATCH" : "POST",
+            headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+            body: JSON.stringify({
+              ...registrationForm,
+              category,
+              medal: "",
+              result_label: "",
+              status: "registered",
+            }),
+          },
+        );
+
+        return {
+          ok: response.ok,
+          payload: await response.json(),
+        };
+      }),
     );
-    const payload = await response.json();
     setBusy(false);
 
-    if (!response.ok) {
-      setError(payload.error ?? "Unable to save tournament registration.");
+    const failedResponse = responses.find((response) => !response.ok);
+
+    if (failedResponse) {
+      setError(failedResponse.payload.error ?? "Unable to save tournament registration.");
       return;
     }
 
     setEditingRegistrationId("");
+    setRegistrationCategories([]);
     setRegistrationForm({
       ...emptyRegistration,
       tournament_id: registrationForm.tournament_id || tournaments[0]?.id || "",
@@ -494,6 +541,7 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
 
   function startRegistration(tournament: Tournament) {
     setEditingRegistrationId("");
+    setRegistrationCategories([]);
     setRegistrationForm((current) => ({
       ...emptyRegistration,
       tournament_id: tournament.id,
@@ -505,6 +553,7 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
 
   function editRegistration(entry: TournamentEntry) {
     setEditingRegistrationId(entry.id);
+    setRegistrationCategories(entry.category ? [entry.category] : []);
     setRegistrationForm({
       tournament_id: entry.tournament_id,
       student_id: entry.student_id,
@@ -968,15 +1017,43 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
 
         <section className="section-title">
           <h2>{editingRegistrationId ? "Edit registration" : "Register student"}</h2>
-          <p>Choose one student and one category at a time. You can add the same student again for another category.</p>
+          <p>Choose one student, then select every tournament event/category they will enter.</p>
         </section>
         <form className="admin-form content-shell" onSubmit={saveRegistration} ref={registrationFormRef}>
           <label>Tournament<select value={registrationForm.tournament_id} onChange={(event) => updateRegistrationField("tournament_id", event.target.value)} required>{tournaments.map((tournament) => <option key={tournament.id} value={tournament.id}>{tournament.name}</option>)}</select></label>
           <label>Student<select value={registrationForm.student_id} onChange={(event) => updateRegistrationField("student_id", event.target.value)} required>{students.map((student) => <option key={student.id} value={student.id}>{student.first_name} {student.last_name}</option>)}</select></label>
-          <label>Category<select value={registrationForm.category} onChange={(event) => updateRegistrationField("category", event.target.value)} required><option value="">Select category</option>{tournamentCategories.map((category) => <option key={category} value={category}>{category}</option>)}</select></label>
-          <button className="primary-button compact" disabled={busy || tournaments.length === 0 || students.length === 0} type="submit">{editingRegistrationId ? "Save registration" : "Register student"}</button>
           {editingRegistrationId ? (
-            <button className="secondary-button compact" onClick={() => setEditingRegistrationId("")} type="button">Cancel edit</button>
+            <label>Tournament event<select value={registrationForm.category} onChange={(event) => updateRegistrationField("category", event.target.value)} required><option value="">Select event</option>{tournamentCategories.map((category) => <option key={category} value={category}>{category}</option>)}</select></label>
+          ) : (
+            <fieldset style={{ border: "1px solid #d9dee7", borderRadius: 8, display: "grid", gap: 12, gridColumn: "1 / -1", padding: 16 }}>
+              <legend style={{ fontWeight: 800, padding: "0 6px" }}>Tournament events</legend>
+              <div style={{ display: "grid", gap: 10, gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}>
+                {tournamentCategories.map((category) => {
+                  const alreadyRegistered = entries.some(
+                    (entry) =>
+                      entry.tournament_id === registrationForm.tournament_id &&
+                      entry.student_id === registrationForm.student_id &&
+                      entry.category === category,
+                  );
+
+                  return (
+                    <label className="checkbox-label" key={category} style={{ border: "1px solid #d9dee7", borderRadius: 8, padding: 10 }}>
+                      <input
+                        checked={registrationCategories.includes(category)}
+                        disabled={alreadyRegistered}
+                        onChange={(event) => toggleRegistrationCategory(category, event.target.checked)}
+                        type="checkbox"
+                      />
+                      {category}{alreadyRegistered ? " (already registered)" : ""}
+                    </label>
+                  );
+                })}
+              </div>
+            </fieldset>
+          )}
+          <button className="primary-button compact" disabled={busy || tournaments.length === 0 || students.length === 0 || (!editingRegistrationId && registrationCategories.length === 0)} type="submit">{editingRegistrationId ? "Save registration" : "Register selected events"}</button>
+          {editingRegistrationId ? (
+            <button className="secondary-button compact" onClick={() => { setEditingRegistrationId(""); setRegistrationCategories([]); }} type="button">Cancel edit</button>
           ) : null}
         </form>
 
