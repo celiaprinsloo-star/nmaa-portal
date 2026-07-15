@@ -1,18 +1,21 @@
 import { canAccessSchool, getAllowedSchoolIds, requireApprovedUser } from "@/lib/server/access";
 import { logAuditEvent } from "@/lib/server/audit";
 import { createSupabaseAdminClient } from "@/lib/supabaseAdmin";
-import { normalizeTournamentCategory, normalizeTournamentResult, tournamentPointsForResult } from "@/lib/tournamentRules";
+import { normalizeOptionalTournamentResult, normalizeTournamentCategory, tournamentPointsForResult } from "@/lib/tournamentRules";
 
 function cleanEntryBody(body: Record<string, unknown> | null) {
+  const medal = normalizeOptionalTournamentResult(String(body?.medal ?? body?.result ?? ""));
+  const status = String(body?.status ?? "entered").trim() || "entered";
+
   return {
     tournament_id: String(body?.tournament_id ?? "").trim(),
     student_id: String(body?.student_id ?? "").trim(),
     school_id: String(body?.school_id ?? "").trim(),
     category: normalizeTournamentCategory(String(body?.category ?? "")) || null,
     result_label: String(body?.result_label ?? "").trim() || null,
-    medal: normalizeTournamentResult(String(body?.medal ?? body?.result ?? "")),
-    points: tournamentPointsForResult(String(body?.medal ?? body?.result ?? "")),
-    status: String(body?.status ?? "entered").trim() || "entered",
+    medal,
+    points: medal ? tournamentPointsForResult(medal) : null,
+    status,
   };
 }
 
@@ -80,10 +83,26 @@ export async function POST(request: Request) {
     return Response.json({ error: "Select a valid tournament category." }, { status: 400 });
   }
 
+  if (entry.status === "registered" && user.profile.role === "instructor") {
+    return Response.json({ error: "Only school owners can register students for tournaments." }, { status: 403 });
+  }
+
   const supabase = createSupabaseAdminClient();
 
   if (!(await canAccessSchool(supabase, user, entry.school_id))) {
-    return Response.json({ error: "You cannot add results for that school." }, { status: 403 });
+    return Response.json({ error: "You cannot add tournament entries for that school." }, { status: 403 });
+  }
+
+  const { data: existingEntry } = await supabase
+    .from("tournament_entries")
+    .select("id")
+    .eq("tournament_id", entry.tournament_id)
+    .eq("student_id", entry.student_id)
+    .eq("category", entry.category)
+    .maybeSingle();
+
+  if (existingEntry) {
+    return Response.json({ error: "This student is already registered for that tournament category." }, { status: 400 });
   }
 
   const { data, error } = await supabase
@@ -99,7 +118,7 @@ export async function POST(request: Request) {
     action: "tournament_entry.created",
     entityTable: "tournament_entries",
     entityId: data.id,
-    summary: "Created tournament result",
+    summary: data.medal ? "Created tournament result" : "Registered student for tournament",
     metadata: { school_id: data.school_id, medal: data.medal, points: data.points },
   });
 

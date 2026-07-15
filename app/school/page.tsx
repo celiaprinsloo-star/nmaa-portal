@@ -34,6 +34,11 @@ export default function SchoolPage() {
       href: "/school/orders",
     },
     {
+      title: "Tournament registration",
+      description: "Register students for upcoming tournament categories.",
+      href: "/school/tournaments",
+    },
+    {
       title: "Tournament results",
       description: "Record student entries, medals, and points.",
       href: "/school/results",

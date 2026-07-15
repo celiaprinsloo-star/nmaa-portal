@@ -290,11 +290,13 @@ export default function OrderingClient() {
           ))}
           <section className="content-shell">
             <p className="muted">Please note that sizing for uniforms can be irregular. It is the school&apos;s responsibility to ensure the correct fit.</p>
+            <p className="muted">Gear ordered through the portal may only be sold to students registered at your own school, and not to students from other schools.</p>
           </section>
         </section>
 
         <aside className="order-summary-panel" style={summaryPanelStyle}>
           <h2>Cart</h2>
+          <p className="small-note">Gear may only be supplied to students of your own school.</p>
           <label>Contact person<input value={contactName} onChange={(event) => setContactName(event.target.value)} /></label>
           <label>Contact email<input type="email" value={contactEmail} onChange={(event) => setContactEmail(event.target.value)} /></label>
           <label>Notes<textarea rows={4} value={notes} onChange={(event) => setNotes(event.target.value)} /></label>

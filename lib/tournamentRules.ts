@@ -27,6 +27,13 @@ export function normalizeTournamentResult(result: string | null | undefined) {
     : "participation";
 }
 
+export function normalizeOptionalTournamentResult(result: string | null | undefined) {
+  const normalized = String(result ?? "").trim().toLowerCase();
+  return tournamentResults.includes(normalized as (typeof tournamentResults)[number])
+    ? normalized
+    : null;
+}
+
 export function normalizeTournamentCategory(category: string | null | undefined) {
   const normalized = String(category ?? "").trim();
   return tournamentCategories.includes(normalized as (typeof tournamentCategories)[number])

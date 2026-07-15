@@ -70,6 +70,7 @@ const cardSets: Record<UserRole, DashboardCard[]> = {
     { title: "Events", description: "Add attendees for upcoming NMAA events.", href: "/school/events" },
     { title: "Ordering", description: "Build uniform, sparring gear, patches, and belt orders.", href: "/school/orders" },
     { title: "Resources", description: "View the NMAA South Africa constitution and shared documents.", href: "/resources" },
+    { title: "Tournament registration", description: "Register students for upcoming tournaments.", href: "/school/tournaments" },
     { title: "Tournament results", description: "Add student results for tournaments.", href: "/school/results" },
   ],
   instructor: [

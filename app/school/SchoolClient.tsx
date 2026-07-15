@@ -3,7 +3,7 @@
 /* eslint-disable @next/next/no-img-element */
 
 import Link from "next/link";
-import { FormEvent, useCallback, useEffect, useState } from "react";
+import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import BrandMark from "@/app/components/BrandMark";
 import SignOutButton from "@/app/components/SignOutButton";
 import { createSupabaseBrowserClient } from "@/lib/supabaseClient";
@@ -23,7 +23,7 @@ type StudentOption = Pick<Student, "id" | "school_id" | "first_name" | "last_nam
   schools?: { name: string } | null;
 };
 
-type SchoolSection = "overview" | "details" | "instructors" | "compliance" | "results";
+type SchoolSection = "overview" | "details" | "instructors" | "compliance" | "results" | "tournaments";
 
 type SchoolClientProps = {
   section?: SchoolSection;
@@ -90,6 +90,16 @@ const emptyResult = {
   status: "entered",
 };
 
+const emptyRegistration = {
+  tournament_id: "",
+  student_id: "",
+  school_id: "",
+  category: "",
+  medal: "",
+  result_label: "",
+  status: "registered",
+};
+
 export default function SchoolClient({ section = "overview" }: SchoolClientProps) {
   const [token, setToken] = useState("");
   const [school, setSchool] = useState<School | null>(null);
@@ -109,16 +119,19 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
   const [students, setStudents] = useState<StudentOption[]>([]);
   const [resultForm, setResultForm] = useState(emptyResult);
   const [editingResultId, setEditingResultId] = useState("");
+  const [registrationForm, setRegistrationForm] = useState(emptyRegistration);
+  const [editingRegistrationId, setEditingRegistrationId] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [logoBusy, setLogoBusy] = useState(false);
   const [todayTimestamp] = useState(() => Date.now());
+  const registrationFormRef = useRef<HTMLFormElement | null>(null);
 
   const loadAll = useCallback(async (activeToken: string) => {
     const headers = { Authorization: `Bearer ${activeToken}` };
     const needsInstructors = ["overview", "instructors", "compliance"].includes(section);
     const needsDocuments = ["overview", "compliance"].includes(section);
-    const needsResults = ["overview", "results"].includes(section);
+    const needsResults = ["overview", "results", "tournaments"].includes(section);
     const needsStudents = ["overview", "details"].includes(section);
 
     const schoolRes = await fetch("/api/school", { headers });
@@ -198,6 +211,12 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
       student_id: current.student_id || resultsPayload.payload.students[0]?.id || "",
       school_id: current.school_id || resultsPayload.payload.students[0]?.school_id || activeSchool.id,
     }));
+    setRegistrationForm((current) => ({
+      ...current,
+      tournament_id: current.tournament_id || resultsPayload.payload.tournaments[0]?.id || "",
+      student_id: current.student_id || resultsPayload.payload.students[0]?.id || "",
+      school_id: current.school_id || resultsPayload.payload.students[0]?.school_id || activeSchool.id,
+    }));
     setError("");
   }, [section]);
 
@@ -243,6 +262,20 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
     }
 
     setResultForm((current) => ({ ...current, [field]: value }));
+  }
+
+  function updateRegistrationField(field: keyof typeof emptyRegistration, value: string) {
+    if (field === "student_id") {
+      const selectedStudent = students.find((student) => student.id === value);
+      setRegistrationForm((current) => ({
+        ...current,
+        student_id: value,
+        school_id: selectedStudent?.school_id || school?.id || "",
+      }));
+      return;
+    }
+
+    setRegistrationForm((current) => ({ ...current, [field]: value }));
   }
 
   async function saveSchool(event: FormEvent<HTMLFormElement>) {
@@ -421,12 +454,95 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
     });
   }
 
+  async function saveRegistration(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setBusy(true);
+    setError("");
+
+    const registrationPayload = {
+      ...registrationForm,
+      medal: "",
+      result_label: "",
+      status: "registered",
+    };
+
+    const response = await fetch(
+      editingRegistrationId ? `/api/tournament-entries/${editingRegistrationId}` : "/api/tournament-entries",
+      {
+        method: editingRegistrationId ? "PATCH" : "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify(registrationPayload),
+      },
+    );
+    const payload = await response.json();
+    setBusy(false);
+
+    if (!response.ok) {
+      setError(payload.error ?? "Unable to save tournament registration.");
+      return;
+    }
+
+    setEditingRegistrationId("");
+    setRegistrationForm({
+      ...emptyRegistration,
+      tournament_id: registrationForm.tournament_id || tournaments[0]?.id || "",
+      student_id: students[0]?.id || "",
+      school_id: students[0]?.school_id || school?.id || "",
+    });
+    await loadAll(token);
+  }
+
+  function startRegistration(tournament: Tournament) {
+    setEditingRegistrationId("");
+    setRegistrationForm((current) => ({
+      ...emptyRegistration,
+      tournament_id: tournament.id,
+      student_id: current.student_id || students[0]?.id || "",
+      school_id: current.school_id || students[0]?.school_id || school?.id || "",
+    }));
+    window.setTimeout(() => registrationFormRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
+  }
+
+  function editRegistration(entry: TournamentEntry) {
+    setEditingRegistrationId(entry.id);
+    setRegistrationForm({
+      tournament_id: entry.tournament_id,
+      student_id: entry.student_id,
+      school_id: entry.school_id,
+      category: entry.category ?? "",
+      medal: "",
+      result_label: "",
+      status: "registered",
+    });
+    window.setTimeout(() => registrationFormRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
+  }
+
+  async function deleteRegistration(entryId: string) {
+    setBusy(true);
+    setError("");
+
+    const response = await fetch(`/api/tournament-entries/${entryId}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const payload = await response.json().catch(() => ({}));
+    setBusy(false);
+
+    if (!response.ok) {
+      setError(payload.error ?? "Unable to delete tournament registration.");
+      return;
+    }
+
+    await loadAll(token);
+  }
+
   const sectionTitle = {
     overview: school?.name ?? "My school",
     details: "School information",
     instructors: "Instructors",
     compliance: "Compliance documents",
     results: "Tournament results",
+    tournaments: "Tournament registration",
   }[section];
 
   const sectionDescription = {
@@ -435,6 +551,7 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
     instructors: "Manage instructor details, certification, and training status.",
     compliance: "Record safeguarding, first aid, NQF, and instructor training documents.",
     results: "Add entries and results for your school's students.",
+    tournaments: "Register your school students for upcoming tournaments.",
   }[section];
 
   const currentYear = new Date().getFullYear();
@@ -518,6 +635,17 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
         tournament,
         entries: tournamentEntries,
         points: tournamentEntries.reduce((total, entry) => total + Number(entry.points ?? 0), 0),
+      };
+    })
+    .filter((group) => group.entries.length > 0);
+
+  const registrationGroups = tournaments
+    .map((tournament) => {
+      const tournamentEntries = entries.filter((entry) => entry.tournament_id === tournament.id);
+
+      return {
+        tournament,
+        entries: tournamentEntries,
       };
     })
     .filter((group) => group.entries.length > 0);
@@ -791,6 +919,112 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
                           <td>{entry.result_label || entry.medal || "Entered"}</td>
                           <td>{entry.points ?? 0}</td>
                           <td><button className="secondary-button compact" onClick={() => editResult(entry)} type="button">Edit</button></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </details>
+            ))
+          )}
+        </section>
+      </main>
+    );
+  }
+
+  if (section === "tournaments") {
+    return (
+      <main className="app-page">
+        {renderHeader()}
+        {errorBlock}
+        <section className="section-title">
+          <h2>Upcoming tournaments</h2>
+          <p>Select a tournament to register students and categories.</p>
+        </section>
+        <section className="tournament-card-grid">
+          {upcomingTournaments.length === 0 ? (
+            <article className="empty-state">No upcoming tournaments recorded yet.</article>
+          ) : (
+            upcomingTournaments.map((tournament) => (
+              <article className="tournament-card" key={tournament.id}>
+                <div className="tournament-card-header">
+                  <div>
+                    <h2>{tournament.name}</h2>
+                    <p>{tournament.venue ?? "No venue"}</p>
+                  </div>
+                  <span className="status-pill">{tournament.provinces?.name ?? "National"}</span>
+                </div>
+                <dl className="tournament-mini-grid">
+                  <div><dt>Date</dt><dd>{formatTournamentDate(tournament.starts_at)}</dd></div>
+                  <div><dt>Entries close</dt><dd>{tournament.registration_closes_at ? formatTournamentDate(tournament.registration_closes_at) : "Not set"}</dd></div>
+                </dl>
+                <button className="secondary-button compact" disabled={students.length === 0} onClick={() => startRegistration(tournament)} type="button">
+                  Register students
+                </button>
+              </article>
+            ))
+          )}
+        </section>
+
+        <section className="section-title">
+          <h2>{editingRegistrationId ? "Edit registration" : "Register student"}</h2>
+          <p>Choose one student and one category at a time. You can add the same student again for another category.</p>
+        </section>
+        <form className="admin-form content-shell" onSubmit={saveRegistration} ref={registrationFormRef}>
+          <label>Tournament<select value={registrationForm.tournament_id} onChange={(event) => updateRegistrationField("tournament_id", event.target.value)} required>{tournaments.map((tournament) => <option key={tournament.id} value={tournament.id}>{tournament.name}</option>)}</select></label>
+          <label>Student<select value={registrationForm.student_id} onChange={(event) => updateRegistrationField("student_id", event.target.value)} required>{students.map((student) => <option key={student.id} value={student.id}>{student.first_name} {student.last_name}</option>)}</select></label>
+          <label>Category<select value={registrationForm.category} onChange={(event) => updateRegistrationField("category", event.target.value)} required><option value="">Select category</option>{tournamentCategories.map((category) => <option key={category} value={category}>{category}</option>)}</select></label>
+          <button className="primary-button compact" disabled={busy || tournaments.length === 0 || students.length === 0} type="submit">{editingRegistrationId ? "Save registration" : "Register student"}</button>
+          {editingRegistrationId ? (
+            <button className="secondary-button compact" onClick={() => setEditingRegistrationId("")} type="button">Cancel edit</button>
+          ) : null}
+        </form>
+
+        <section className="section-title">
+          <h2>Your tournament registrations</h2>
+          <p>Open a tournament to review your school&apos;s registered students and recorded results.</p>
+        </section>
+        <section className="tournament-accordion-list">
+          {registrationGroups.length === 0 ? (
+            <article className="empty-state">No tournament registrations recorded for your school yet.</article>
+          ) : (
+            registrationGroups.map(({ tournament, entries: tournamentEntries }, index) => (
+              <details className="tournament-group" key={tournament.id} open={index === 0}>
+                <summary>
+                  <span>
+                    <strong>{tournament.name}</strong>
+                    <small>{formatTournamentDate(tournament.starts_at)} | {tournament.venue ?? "No venue"}</small>
+                  </span>
+                  <span className="tournament-summary-counts">
+                    <b>{tournamentEntries.length}</b> registrations
+                  </span>
+                </summary>
+                <div className="responsive-table">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Student</th>
+                        <th>Rank</th>
+                        <th>Category</th>
+                        <th>Status</th>
+                        <th>Result</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {tournamentEntries.map((entry) => (
+                        <tr key={entry.id}>
+                          <td>{entry.students?.first_name} {entry.students?.last_name}</td>
+                          <td>{entry.students?.belt_rank ?? "No rank"}</td>
+                          <td>{entry.category ?? "No category"}</td>
+                          <td>{entry.status}</td>
+                          <td>{entry.medal ? `${entry.medal} (${entry.points ?? 0} pts)` : "Pending result"}</td>
+                          <td>
+                            <div className="row-actions">
+                              <button className="secondary-button compact" onClick={() => editRegistration(entry)} type="button">Edit</button>
+                              <button className="danger-button compact" disabled={busy} onClick={() => deleteRegistration(entry.id)} type="button">Delete</button>
+                            </div>
+                          </td>
                         </tr>
                       ))}
                     </tbody>

@@ -1,17 +1,19 @@
 import { requireAdmin } from "@/lib/server/requireAdmin";
 import { logAuditEvent } from "@/lib/server/audit";
 import { createSupabaseAdminClient } from "@/lib/supabaseAdmin";
-import { normalizeTournamentCategory, normalizeTournamentResult, tournamentPointsForResult } from "@/lib/tournamentRules";
+import { normalizeOptionalTournamentResult, normalizeTournamentCategory, tournamentPointsForResult } from "@/lib/tournamentRules";
 
 function cleanEntryBody(body: Record<string, unknown> | null) {
+  const medal = normalizeOptionalTournamentResult(String(body?.medal ?? body?.result ?? ""));
+
   return {
     tournament_id: String(body?.tournament_id ?? "").trim(),
     student_id: String(body?.student_id ?? "").trim(),
     school_id: String(body?.school_id ?? "").trim(),
     category: normalizeTournamentCategory(String(body?.category ?? "")) || null,
     result_label: String(body?.result_label ?? "").trim() || null,
-    medal: normalizeTournamentResult(String(body?.medal ?? body?.result ?? "")),
-    points: tournamentPointsForResult(String(body?.medal ?? body?.result ?? "")),
+    medal,
+    points: medal ? tournamentPointsForResult(medal) : null,
     status: String(body?.status ?? "entered").trim() || "entered",
   };
 }
