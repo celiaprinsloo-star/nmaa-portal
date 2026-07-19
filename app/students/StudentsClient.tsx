@@ -54,6 +54,7 @@ export default function StudentsClient() {
     gender: "",
     race: "",
     rank: "",
+    age_group: "",
   });
   const [pagination, setPagination] = useState({ page: 1, page_size: 25, total: 0, has_more: false });
   const [error, setError] = useState("");
@@ -64,11 +65,14 @@ export default function StudentsClient() {
   async function loadStudents(activeToken: string, page = 1, append = false) {
     const params = new URLSearchParams(window.location.search);
     const requestedSchoolId = params.get("school_id");
+    const requestedAgeGroup = params.get("age_group");
     const query = new URLSearchParams();
     query.set("page", String(page));
     query.set("page_size", "25");
     const activeSchoolId = requestedSchoolId || filters.school_id;
+    const activeAgeGroup = filters.age_group || requestedAgeGroup;
     if (activeSchoolId) query.set("school_id", activeSchoolId);
+    if (activeAgeGroup) query.set("age_group", activeAgeGroup);
     if (filters.search) query.set("search", filters.search);
     if (filters.status) query.set("status", filters.status);
     if (filters.gender) query.set("gender", filters.gender);
@@ -88,6 +92,9 @@ export default function StudentsClient() {
     setStudents((current) => (append ? [...current, ...payload.students] : payload.students));
     setSchools(payload.schools);
     setSelectedSchoolName(requestedSchoolId ? payload.schools[0]?.name ?? "" : "");
+    if (requestedAgeGroup && !filters.age_group) {
+      setFilters((current) => ({ ...current, age_group: requestedAgeGroup }));
+    }
     setCanManageStudents(Boolean(payload.can_manage_students));
     setProfileRole(payload.profile_role ?? "");
     setPagination(payload.pagination ?? { page, page_size: 25, total: payload.students.length, has_more: false });
@@ -216,6 +223,12 @@ export default function StudentsClient() {
     link.download = "students.csv";
     link.click();
     URL.revokeObjectURL(url);
+  }
+
+  function resetFilters() {
+    setFilters({ search: "", school_id: "", status: "", gender: "", race: "", rank: "", age_group: "" });
+    window.history.replaceState(null, "", "/students");
+    window.setTimeout(() => loadStudents(token), 0);
   }
 
   async function importCsv(file: File | null) {
@@ -394,10 +407,11 @@ export default function StudentsClient() {
           <label>Gender<select value={filters.gender} onChange={(event) => updateFilter("gender", event.target.value)}><option value="">All genders</option><option value="male">Male</option><option value="female">Female</option><option value="other">Other</option></select></label>
           <label>Race<select value={filters.race} onChange={(event) => updateFilter("race", event.target.value)}><option value="">All race groups</option><option value="White">White</option><option value="Black">Black</option><option value="Coloured">Coloured</option><option value="Indian">Indian</option><option value="Asian">Asian</option><option value="Other">Other</option></select></label>
           <label>Rank<select value={filters.rank} onChange={(event) => updateFilter("rank", event.target.value)}><option value="">All ranks</option>{beltRanks.map((rank) => <option key={rank} value={rank}>{rank}</option>)}</select></label>
+          <label>Age group<select value={filters.age_group} onChange={(event) => updateFilter("age_group", event.target.value)}><option value="">All age groups</option><option value="little_dragons">Little Dragons 4-6</option><option value="karate_kids">Karate Kids 7-12</option><option value="teens_adults">Teens and Adults 13+</option><option value="not_grouped">No DOB / under 4</option></select></label>
           <div className="student-actions">
             <div className="row-actions">
               <button className="primary-button compact" onClick={() => loadStudents(token)} type="button">Apply filters</button>
-              <button className="secondary-button compact" onClick={() => { setFilters({ search: "", school_id: "", status: "", gender: "", race: "", rank: "" }); window.setTimeout(() => loadStudents(token), 0); }} type="button">Clear</button>
+              <button className="secondary-button compact" onClick={resetFilters} type="button">Clear</button>
             </div>
             <div className="row-actions">
               <button className="secondary-button compact" onClick={exportCsv} type="button">Export CSV</button>

@@ -741,6 +741,7 @@ label {
 }
 
 .stat-grid article,
+.stat-grid a,
 .mini-row {
   display: grid;
   gap: 4px;
@@ -1297,6 +1298,7 @@ label {
 }
 
 .stat-grid article,
+.stat-grid a,
 .mini-row,
 .cart-lines article,
 .order-total-card,

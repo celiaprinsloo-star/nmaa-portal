@@ -16,6 +16,33 @@ function cleanStudentBody(body: Record<string, unknown> | null) {
   };
 }
 
+function studentAge(dateOfBirth: string | null) {
+  if (!dateOfBirth) return null;
+
+  const birthDate = new Date(dateOfBirth);
+  if (Number.isNaN(birthDate.getTime())) return null;
+
+  const today = new Date();
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const hasBirthdayPassed =
+    today.getMonth() > birthDate.getMonth() ||
+    (today.getMonth() === birthDate.getMonth() && today.getDate() >= birthDate.getDate());
+
+  if (!hasBirthdayPassed) age -= 1;
+  return age;
+}
+
+function matchesAgeGroup(dateOfBirth: string | null, ageGroup: string) {
+  const age = studentAge(dateOfBirth);
+
+  if (ageGroup === "little_dragons") return age !== null && age >= 4 && age <= 6;
+  if (ageGroup === "karate_kids") return age !== null && age >= 7 && age <= 12;
+  if (ageGroup === "teens_adults") return age !== null && age >= 13;
+  if (ageGroup === "not_grouped") return age === null || age < 4;
+
+  return true;
+}
+
 export async function GET(request: Request) {
   const { user, response } = await requireApprovedUser(request);
 
@@ -35,6 +62,7 @@ export async function GET(request: Request) {
   const gender = url.searchParams.get("gender")?.trim();
   const race = url.searchParams.get("race")?.trim();
   const rank = url.searchParams.get("rank")?.trim();
+  const ageGroup = url.searchParams.get("age_group")?.trim();
   const { page, pageSize, from, to } = paginationFromUrl(request.url);
   const { schoolIds, error: schoolError } = user.profile.role === "hq_viewer"
     ? await supabase
@@ -77,7 +105,7 @@ export async function GET(request: Request) {
   if (race) studentsQuery.eq("race", race);
   if (rank) studentsQuery.eq("belt_rank", rank);
 
-  studentsQuery.range(from, to);
+  if (!ageGroup) studentsQuery.range(from, to);
 
   const [studentsResult, schoolsResult] = await Promise.all([studentsQuery, schoolsQuery]);
 
@@ -89,10 +117,15 @@ export async function GET(request: Request) {
     return Response.json({ error: schoolsResult.error.message }, { status: 400 });
   }
 
+  const filteredStudents = ageGroup
+    ? studentsResult.data.filter((student) => matchesAgeGroup(student.date_of_birth, ageGroup))
+    : studentsResult.data;
+  const pagedStudents = ageGroup ? filteredStudents.slice(from, to + 1) : filteredStudents;
+
   return Response.json({
-    students: studentsResult.data,
+    students: pagedStudents,
     schools: schoolsResult.data,
-    pagination: paginationPayload(page, pageSize, studentsResult.count),
+    pagination: paginationPayload(page, pageSize, ageGroup ? filteredStudents.length : studentsResult.count),
     profile_role: user.profile.role,
     can_manage_students: user.profile.role === "school_owner",
   });

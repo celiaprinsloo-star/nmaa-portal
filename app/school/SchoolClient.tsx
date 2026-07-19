@@ -711,6 +711,11 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
     })
     .filter((group) => group.entries.length > 0);
 
+  function studentAgeGroupHref(ageGroup: string) {
+    const schoolParam = school?.id ? `school_id=${school.id}&` : "";
+    return `/students?${schoolParam}age_group=${ageGroup}`;
+  }
+
   function renderHeader() {
     return (
       <header className="page-header">
@@ -765,10 +770,10 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
               <article><strong>{studentStats.total}</strong><span>Total students</span></article>
               <article><strong>{studentStats.male}</strong><span>Male students</span></article>
               <article><strong>{studentStats.female}</strong><span>Female students</span></article>
-              <article><strong>{studentStats.littleDragons}</strong><span>Little Dragons 4-6</span></article>
-              <article><strong>{studentStats.karateKids}</strong><span>Karate Kids 7-12</span></article>
-              <article><strong>{studentStats.teensAdults}</strong><span>Teens and Adults 13+</span></article>
-              <article><strong>{studentStats.notInAgeGroups}</strong><span>No DOB / under 4</span></article>
+              <Link href={studentAgeGroupHref("little_dragons")}><strong>{studentStats.littleDragons}</strong><span>Little Dragons 4-6</span></Link>
+              <Link href={studentAgeGroupHref("karate_kids")}><strong>{studentStats.karateKids}</strong><span>Karate Kids 7-12</span></Link>
+              <Link href={studentAgeGroupHref("teens_adults")}><strong>{studentStats.teensAdults}</strong><span>Teens and Adults 13+</span></Link>
+              <Link href={studentAgeGroupHref("not_grouped")}><strong>{studentStats.notInAgeGroups}</strong><span>No DOB / under 4</span></Link>
             </div>
             <h3>Race</h3>
             <p className="muted">
@@ -1175,10 +1180,10 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
             <article><strong>{studentStats.total}</strong><span>Total students</span></article>
             <article><strong>{studentStats.male}</strong><span>Male students</span></article>
             <article><strong>{studentStats.female}</strong><span>Female students</span></article>
-            <article><strong>{studentStats.littleDragons}</strong><span>Little Dragons 4-6</span></article>
-            <article><strong>{studentStats.karateKids}</strong><span>Karate Kids 7-12</span></article>
-            <article><strong>{studentStats.teensAdults}</strong><span>Teens and Adults 13+</span></article>
-            <article><strong>{studentStats.notInAgeGroups}</strong><span>No DOB / under 4</span></article>
+            <Link href={studentAgeGroupHref("little_dragons")}><strong>{studentStats.littleDragons}</strong><span>Little Dragons 4-6</span></Link>
+            <Link href={studentAgeGroupHref("karate_kids")}><strong>{studentStats.karateKids}</strong><span>Karate Kids 7-12</span></Link>
+            <Link href={studentAgeGroupHref("teens_adults")}><strong>{studentStats.teensAdults}</strong><span>Teens and Adults 13+</span></Link>
+            <Link href={studentAgeGroupHref("not_grouped")}><strong>{studentStats.notInAgeGroups}</strong><span>No DOB / under 4</span></Link>
           </div>
           <h3>Race</h3>
           <p className="muted">
