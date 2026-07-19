@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import PasswordField from "@/app/components/PasswordField";
 import { publicRegistrationRoles, type UserRole } from "@/lib/types";
 
 const roleLabels: Record<UserRole, string> = {
@@ -72,17 +73,13 @@ export default function RegisterForm() {
           autoComplete="email"
         />
       </label>
-      <label>
-        Password
-        <input
-          type="password"
-          required
-          minLength={8}
-          value={password}
-          onChange={(event) => setPassword(event.target.value)}
-          autoComplete="new-password"
-        />
-      </label>
+      <PasswordField
+        autoComplete="new-password"
+        label="Password"
+        minLength={8}
+        onChange={setPassword}
+        value={password}
+      />
       <label>
         Requested role
         <select

@@ -75,7 +75,7 @@ function buildStats(students: StudentRow[], schoolCount: number) {
     stats.race_counts[race] = (stats.race_counts[race] ?? 0) + 1;
 
     const age = studentAge(student.date_of_birth);
-    if (age === null) stats.age_not_recorded += 1;
+    if (age === null || age < 4) stats.age_not_recorded += 1;
     else if (age >= 4 && age <= 6) stats.little_dragons += 1;
     else if (age >= 7 && age <= 12) stats.karate_kids += 1;
     else if (age >= 13) stats.teens_adults += 1;

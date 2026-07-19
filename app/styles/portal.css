@@ -223,6 +223,32 @@ label {
   gap: 16px;
 }
 
+.password-control {
+  position: relative;
+  display: block;
+}
+
+.password-control input {
+  padding-right: 84px;
+}
+
+.password-toggle {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  min-height: 32px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0 12px;
+  background: #fff;
+  color: var(--accent-dark);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  transform: translateY(-50%);
+}
+
 .button-row {
   display: flex;
   flex-wrap: wrap;

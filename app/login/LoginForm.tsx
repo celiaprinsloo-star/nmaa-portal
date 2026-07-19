@@ -2,6 +2,7 @@
 
 import { useSearchParams } from "next/navigation";
 import { FormEvent, useState } from "react";
+import PasswordField from "@/app/components/PasswordField";
 import { createSupabaseBrowserClient } from "@/lib/supabaseClient";
 
 export default function LoginForm() {
@@ -73,16 +74,12 @@ export default function LoginForm() {
           autoComplete="email"
         />
       </label>
-      <label>
-        Password
-        <input
-          type="password"
-          required
-          value={password}
-          onChange={(event) => setPassword(event.target.value)}
-          autoComplete="current-password"
-        />
-      </label>
+      <PasswordField
+        autoComplete="current-password"
+        label="Password"
+        onChange={setPassword}
+        value={password}
+      />
       {error ? <p className="form-error">{error}</p> : null}
       {message ? <p className="form-success">{message}</p> : null}
       <button className="primary-button" disabled={busy} type="submit">

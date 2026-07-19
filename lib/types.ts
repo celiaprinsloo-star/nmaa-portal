@@ -60,6 +60,7 @@ export type School = {
   little_dragons_count?: number;
   karate_kids_count?: number;
   teens_adults_count?: number;
+  age_not_grouped_count?: number;
   race_counts?: Record<string, number>;
   outstanding_compliance_count?: number;
   expired_compliance_count?: number;

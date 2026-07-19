@@ -133,6 +133,7 @@ export default function StatisticsClient() {
               {metric("Little Dragons 4-6", data.national.little_dragons)}
               {metric("Karate Kids 7-12", data.national.karate_kids)}
               {metric("Teens and Adults 13+", data.national.teens_adults)}
+              {metric("No DOB / under 4", data.national.age_not_recorded)}
             </div>
             <p className="school-race-line" style={{ marginTop: 14 }}>{raceSummary(data.national.race_counts)}</p>
           </section>
@@ -162,6 +163,7 @@ export default function StatisticsClient() {
                   <div><dt>Little Dragons</dt><dd>{province.little_dragons}</dd></div>
                   <div><dt>Karate Kids</dt><dd>{province.karate_kids}</dd></div>
                   <div><dt>Teens and Adults</dt><dd>{province.teens_adults}</dd></div>
+                  <div><dt>No DOB / under 4</dt><dd>{province.age_not_recorded}</dd></div>
                   <div><dt>Race</dt><dd>{raceSummary(province.race_counts)}</dd></div>
                 </dl>
               </details>
@@ -185,6 +187,7 @@ export default function StatisticsClient() {
                   <th>4-6</th>
                   <th>7-12</th>
                   <th>13+</th>
+                  <th>No DOB / under 4</th>
                   <th>Race</th>
                 </tr>
               </thead>
@@ -200,6 +203,7 @@ export default function StatisticsClient() {
                     <td>{school.little_dragons}</td>
                     <td>{school.karate_kids}</td>
                     <td>{school.teens_adults}</td>
+                    <td>{school.age_not_recorded}</td>
                     <td>{raceSummary(school.race_counts)}</td>
                   </tr>
                 ))}

@@ -17,6 +17,22 @@ function cleanSchoolBody(body: Record<string, unknown> | null) {
   };
 }
 
+function studentAge(dateOfBirth: string | null) {
+  if (!dateOfBirth) return null;
+
+  const birthDate = new Date(dateOfBirth);
+  if (Number.isNaN(birthDate.getTime())) return null;
+
+  const today = new Date();
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const hasBirthdayPassed =
+    today.getMonth() > birthDate.getMonth() ||
+    (today.getMonth() === birthDate.getMonth() && today.getDate() >= birthDate.getDate());
+
+  if (!hasBirthdayPassed) age -= 1;
+  return age;
+}
+
 export async function GET(request: Request) {
   const { user, response } = await requireAdmin(request);
 
@@ -72,7 +88,6 @@ export async function GET(request: Request) {
   }
 
   const today = new Date();
-  const currentYear = today.getFullYear();
   const schools = schoolsResult.data.map((school) => {
     const students = studentsResult.data.filter((student) => student.school_id === school.id);
     const documents = documentsResult.data.filter((document) => document.school_id === school.id);
@@ -105,14 +120,18 @@ export async function GET(request: Request) {
     }, {});
     const ageCounts = students.reduce(
       (counts, student) => {
-        if (!student.date_of_birth) return counts;
-        const age = currentYear - new Date(student.date_of_birth).getFullYear();
+        const age = studentAge(student.date_of_birth);
+        if (age === null || age < 4) {
+          counts.notInAgeGroups += 1;
+          return counts;
+        }
+
         if (age >= 4 && age <= 6) counts.littleDragons += 1;
         else if (age >= 7 && age <= 12) counts.karateKids += 1;
         else if (age >= 13) counts.teensAdults += 1;
         return counts;
       },
-      { littleDragons: 0, karateKids: 0, teensAdults: 0 },
+      { littleDragons: 0, karateKids: 0, teensAdults: 0, notInAgeGroups: 0 },
     );
 
     return {
@@ -123,6 +142,7 @@ export async function GET(request: Request) {
       little_dragons_count: ageCounts.littleDragons,
       karate_kids_count: ageCounts.karateKids,
       teens_adults_count: ageCounts.teensAdults,
+      age_not_grouped_count: ageCounts.notInAgeGroups,
       race_counts: raceCounts,
       instructor_count: instructors.length,
       submitted_compliance_count: documents.length,

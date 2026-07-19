@@ -100,6 +100,22 @@ const emptyRegistration = {
   status: "registered",
 };
 
+function studentAge(dateOfBirth: string | null) {
+  if (!dateOfBirth) return null;
+
+  const birthDate = new Date(dateOfBirth);
+  if (Number.isNaN(birthDate.getTime())) return null;
+
+  const today = new Date();
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const hasBirthdayPassed =
+    today.getMonth() > birthDate.getMonth() ||
+    (today.getMonth() === birthDate.getMonth() && today.getDate() >= birthDate.getDate());
+
+  if (!hasBirthdayPassed) age -= 1;
+  return age;
+}
+
 export default function SchoolClient({ section = "overview" }: SchoolClientProps) {
   const [token, setToken] = useState("");
   const [school, setSchool] = useState<School | null>(null);
@@ -603,7 +619,6 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
     tournaments: "Register your school students for upcoming tournaments.",
   }[section];
 
-  const currentYear = new Date().getFullYear();
   const studentStats = schoolStudents.reduce(
     (stats, student) => {
       stats.total += 1;
@@ -614,14 +629,11 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
       const race = student.race || "Not recorded";
       stats.race[race] = (stats.race[race] ?? 0) + 1;
 
-      if (student.date_of_birth) {
-        const age = currentYear - new Date(student.date_of_birth).getFullYear();
-        if (age >= 4 && age <= 6) stats.littleDragons += 1;
-        else if (age >= 7 && age <= 12) stats.karateKids += 1;
-        else if (age >= 13) stats.teensAdults += 1;
-      } else {
-        stats.ageNotRecorded += 1;
-      }
+      const age = studentAge(student.date_of_birth);
+      if (age === null || age < 4) stats.notInAgeGroups += 1;
+      else if (age >= 4 && age <= 6) stats.littleDragons += 1;
+      else if (age >= 7 && age <= 12) stats.karateKids += 1;
+      else if (age >= 13) stats.teensAdults += 1;
 
       return stats;
     },
@@ -632,7 +644,7 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
       littleDragons: 0,
       karateKids: 0,
       teensAdults: 0,
-      ageNotRecorded: 0,
+      notInAgeGroups: 0,
       race: {} as Record<string, number>,
     },
   );
@@ -756,6 +768,7 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
               <article><strong>{studentStats.littleDragons}</strong><span>Little Dragons 4-6</span></article>
               <article><strong>{studentStats.karateKids}</strong><span>Karate Kids 7-12</span></article>
               <article><strong>{studentStats.teensAdults}</strong><span>Teens and Adults 13+</span></article>
+              <article><strong>{studentStats.notInAgeGroups}</strong><span>No DOB / under 4</span></article>
             </div>
             <h3>Race</h3>
             <p className="muted">
@@ -1165,6 +1178,7 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
             <article><strong>{studentStats.littleDragons}</strong><span>Little Dragons 4-6</span></article>
             <article><strong>{studentStats.karateKids}</strong><span>Karate Kids 7-12</span></article>
             <article><strong>{studentStats.teensAdults}</strong><span>Teens and Adults 13+</span></article>
+            <article><strong>{studentStats.notInAgeGroups}</strong><span>No DOB / under 4</span></article>
           </div>
           <h3>Race</h3>
           <p className="muted">

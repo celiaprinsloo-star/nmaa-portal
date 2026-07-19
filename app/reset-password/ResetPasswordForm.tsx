@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+import PasswordField from "@/app/components/PasswordField";
 import { createSupabaseBrowserClient } from "@/lib/supabaseClient";
 
 export default function ResetPasswordForm() {
@@ -55,28 +56,20 @@ export default function ResetPasswordForm() {
 
   return (
     <form className="stack-form" onSubmit={onSubmit}>
-      <label>
-        New password
-        <input
-          autoComplete="new-password"
-          minLength={8}
-          onChange={(event) => setPassword(event.target.value)}
-          required
-          type="password"
-          value={password}
-        />
-      </label>
-      <label>
-        Confirm password
-        <input
-          autoComplete="new-password"
-          minLength={8}
-          onChange={(event) => setConfirmPassword(event.target.value)}
-          required
-          type="password"
-          value={confirmPassword}
-        />
-      </label>
+      <PasswordField
+        autoComplete="new-password"
+        label="New password"
+        minLength={8}
+        onChange={setPassword}
+        value={password}
+      />
+      <PasswordField
+        autoComplete="new-password"
+        label="Confirm password"
+        minLength={8}
+        onChange={setConfirmPassword}
+        value={confirmPassword}
+      />
       {error ? <p className="form-error">{error}</p> : null}
       {message ? <p className="form-success">{message}</p> : null}
       <button className="primary-button" disabled={busy} type="submit">
