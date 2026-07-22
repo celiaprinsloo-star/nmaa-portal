@@ -684,6 +684,44 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
     });
   }
 
+  function formatFee(value: number) {
+    return `R${value.toFixed(2)}`;
+  }
+
+  function feeRule(tournament: Tournament) {
+    return {
+      baseFee: Number(tournament.fee_structure?.base_fee ?? 0),
+      includedEvents: Math.max(1, Number(tournament.fee_structure?.included_events ?? 1) || 1),
+      additionalEventFee: Number(tournament.fee_structure?.additional_event_fee ?? 0),
+    };
+  }
+
+  function feeSummary(tournament: Tournament) {
+    const rule = feeRule(tournament);
+
+    if (rule.baseFee <= 0) return "No fees set yet.";
+    return `First ${rule.includedEvents} event${rule.includedEvents === 1 ? "" : "s"}: ${formatFee(rule.baseFee)} | Each additional event: ${formatFee(rule.additionalEventFee)}`;
+  }
+
+  function feeForStudentEntries(tournament: Tournament, entryCount: number) {
+    if (entryCount <= 0) return 0;
+
+    const rule = feeRule(tournament);
+    if (rule.baseFee <= 0) return 0;
+
+    const additionalEntries = Math.max(0, entryCount - rule.includedEvents);
+    return rule.baseFee + additionalEntries * rule.additionalEventFee;
+  }
+
+  function totalFeeForEntries(tournament: Tournament, tournamentEntries: TournamentEntry[]) {
+    const entriesByStudent = tournamentEntries.reduce<Record<string, number>>((grouped, entry) => {
+      grouped[entry.student_id] = (grouped[entry.student_id] ?? 0) + 1;
+      return grouped;
+    }, {});
+
+    return Object.values(entriesByStudent).reduce((total, entryCount) => total + feeForStudentEntries(tournament, entryCount), 0);
+  }
+
   const upcomingTournaments = tournaments
     .filter((tournament) => new Date(tournament.starts_at).getTime() >= todayTimestamp)
     .sort((a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime());
@@ -926,6 +964,7 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
                   <div><dt>Date</dt><dd>{formatTournamentDate(tournament.starts_at)}</dd></div>
                   <div><dt>Entries close</dt><dd>{tournament.registration_closes_at ? formatTournamentDate(tournament.registration_closes_at) : "Not set"}</dd></div>
                 </dl>
+                <p className="small-note">{feeSummary(tournament)}</p>
               </article>
             ))
           )}
@@ -1025,6 +1064,7 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
                   <div><dt>Date</dt><dd>{formatTournamentDate(tournament.starts_at)}</dd></div>
                   <div><dt>Entries close</dt><dd>{tournament.registration_closes_at ? formatTournamentDate(tournament.registration_closes_at) : "Not set"}</dd></div>
                 </dl>
+                <p className="small-note">{feeSummary(tournament)}</p>
                 <button className="secondary-button compact" disabled={students.length === 0} onClick={() => startRegistration(tournament)} type="button">
                   Register students
                 </button>
@@ -1092,6 +1132,7 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
                   </span>
                   <span className="tournament-summary-counts">
                     <b>{tournamentEntries.length}</b> registrations
+                    <b>{formatFee(totalFeeForEntries(tournament, tournamentEntries))}</b> total fees
                   </span>
                 </summary>
                 <div className="responsive-table">

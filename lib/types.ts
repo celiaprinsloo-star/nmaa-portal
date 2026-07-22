@@ -100,6 +100,7 @@ export type Tournament = {
   starts_at: string;
   ends_at: string | null;
   registration_closes_at: string | null;
+  fee_structure: Record<string, number> | null;
   provinces?: Pick<Province, "name" | "code"> | null;
 };
 

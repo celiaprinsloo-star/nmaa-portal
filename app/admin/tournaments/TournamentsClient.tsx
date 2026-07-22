@@ -17,6 +17,12 @@ const emptyTournament = {
   registration_closes_at: "",
 };
 
+const emptyFeeStructure = {
+  base_fee: "",
+  included_events: "1",
+  additional_event_fee: "",
+};
+
 const emptyEntry = {
   tournament_id: "",
   student_id: "",
@@ -50,6 +56,7 @@ export default function TournamentsClient() {
   const [students, setStudents] = useState<StudentOption[]>([]);
   const [leaderboard, setLeaderboard] = useState<LeaderboardRow[]>([]);
   const [tournamentForm, setTournamentForm] = useState(emptyTournament);
+  const [feeForm, setFeeForm] = useState(emptyFeeStructure);
   const [entryForm, setEntryForm] = useState(emptyEntry);
   const [editingTournamentId, setEditingTournamentId] = useState("");
   const [editingEntryId, setEditingEntryId] = useState("");
@@ -108,6 +115,10 @@ export default function TournamentsClient() {
     setTournamentForm((current) => ({ ...current, [field]: value }));
   }
 
+  function updateFeeField(field: keyof typeof emptyFeeStructure, value: string) {
+    setFeeForm((current) => ({ ...current, [field]: value }));
+  }
+
   function updateEntryField(field: keyof typeof emptyEntry, value: string) {
     if (field === "student_id") {
       const selectedStudent = students.find((student) => student.id === value);
@@ -125,6 +136,7 @@ export default function TournamentsClient() {
   function resetTournamentForm() {
     setEditingTournamentId("");
     setTournamentForm({ ...emptyTournament, province_id: provinces[0]?.id || "" });
+    setFeeForm(emptyFeeStructure);
   }
 
   function resetEntryForm() {
@@ -147,6 +159,12 @@ export default function TournamentsClient() {
       ends_at: tournament.ends_at?.slice(0, 16) ?? "",
       registration_closes_at: tournament.registration_closes_at?.slice(0, 16) ?? "",
     });
+    setFeeForm({
+      base_fee: tournament.fee_structure?.base_fee !== undefined ? String(tournament.fee_structure.base_fee) : "",
+      included_events: tournament.fee_structure?.included_events !== undefined ? String(tournament.fee_structure.included_events) : "1",
+      additional_event_fee:
+        tournament.fee_structure?.additional_event_fee !== undefined ? String(tournament.fee_structure.additional_event_fee) : "",
+    });
   }
 
 function editEntry(entry: TournamentEntry) {
@@ -168,6 +186,57 @@ function editEntry(entry: TournamentEntry) {
       month: "short",
       year: "numeric",
     });
+  }
+
+  function formatFee(value: number) {
+    return `R${value.toFixed(2)}`;
+  }
+
+  function feeRule(tournament: Tournament) {
+    return {
+      baseFee: Number(tournament.fee_structure?.base_fee ?? 0),
+      includedEvents: Math.max(1, Number(tournament.fee_structure?.included_events ?? 1) || 1),
+      additionalEventFee: Number(tournament.fee_structure?.additional_event_fee ?? 0),
+    };
+  }
+
+  function feeSummary(tournament: Tournament) {
+    const rule = feeRule(tournament);
+
+    if (rule.baseFee <= 0) return "No fees set";
+    return `First ${rule.includedEvents} event${rule.includedEvents === 1 ? "" : "s"}: ${formatFee(rule.baseFee)} | Each additional event: ${formatFee(rule.additionalEventFee)}`;
+  }
+
+  function feeForStudentEntries(tournament: Tournament, entryCount: number) {
+    if (entryCount <= 0) return 0;
+
+    const rule = feeRule(tournament);
+    if (rule.baseFee <= 0) return 0;
+
+    const additionalEntries = Math.max(0, entryCount - rule.includedEvents);
+    return rule.baseFee + additionalEntries * rule.additionalEventFee;
+  }
+
+  function schoolFeeTotals(tournament: Tournament, tournamentEntries: TournamentEntry[]) {
+    const schoolStudents = new Map<string, { schoolName: string; students: Map<string, number> }>();
+
+    for (const entry of tournamentEntries) {
+      const schoolId = entry.school_id;
+      const schoolName = entry.schools?.name ?? "Unknown school";
+      const current = schoolStudents.get(schoolId) ?? { schoolName, students: new Map<string, number>() };
+      current.students.set(entry.student_id, (current.students.get(entry.student_id) ?? 0) + 1);
+      schoolStudents.set(schoolId, current);
+    }
+
+    return Array.from(schoolStudents.entries())
+      .map(([schoolId, total]) => ({
+        schoolId,
+        schoolName: total.schoolName,
+        students: total.students.size,
+        entries: Array.from(total.students.values()).reduce((sum, count) => sum + count, 0),
+        total: Array.from(total.students.values()).reduce((sum, count) => sum + feeForStudentEntries(tournament, count), 0),
+      }))
+      .sort((a, b) => b.total - a.total || a.schoolName.localeCompare(b.schoolName));
   }
 
   const tournamentGroups = tournaments.map((tournament) => {
@@ -195,7 +264,14 @@ function editEntry(entry: TournamentEntry) {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(tournamentForm),
+        body: JSON.stringify({
+          ...tournamentForm,
+          fee_structure: {
+            base_fee: Number(feeForm.base_fee) || 0,
+            included_events: Math.max(1, Number(feeForm.included_events) || 1),
+            additional_event_fee: Number(feeForm.additional_event_fee) || 0,
+          },
+        }),
       },
     );
     const payload = await response.json();
@@ -435,6 +511,32 @@ function editEntry(entry: TournamentEntry) {
             End
             <input type="datetime-local" value={tournamentForm.ends_at} onChange={(event) => updateTournamentField("ends_at", event.target.value)} />
           </label>
+          <label>
+            Registration closes
+            <input
+              type="datetime-local"
+              value={tournamentForm.registration_closes_at}
+              onChange={(event) => updateTournamentField("registration_closes_at", event.target.value)}
+            />
+          </label>
+          <fieldset style={{ border: "1px solid #d9dee7", borderRadius: 8, display: "grid", gap: 12, gridColumn: "1 / -1", padding: 16 }}>
+            <legend style={{ fontWeight: 800, padding: "0 6px" }}>Tournament fees</legend>
+            <div style={{ display: "grid", gap: 10, gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))" }}>
+              <label>
+                Base fee
+                <input min="0" onChange={(event) => updateFeeField("base_fee", event.target.value)} placeholder="350.00" step="0.01" type="number" value={feeForm.base_fee} />
+              </label>
+              <label>
+                Base fee includes events
+                <input min="1" onChange={(event) => updateFeeField("included_events", event.target.value)} step="1" type="number" value={feeForm.included_events} />
+              </label>
+              <label>
+                Each additional event
+                <input min="0" onChange={(event) => updateFeeField("additional_event_fee", event.target.value)} placeholder="50.00" step="0.01" type="number" value={feeForm.additional_event_fee} />
+              </label>
+            </div>
+            <p className="small-note">Examples: first event R350 and each additional event R50, or first two events R350 and each additional event R50.</p>
+          </fieldset>
           <button className="primary-button compact" disabled={busy} type="submit">
             {editingTournamentId ? "Save tournament" : "Add tournament"}
           </button>
@@ -504,7 +606,9 @@ function editEntry(entry: TournamentEntry) {
               <div><dt>Entries</dt><dd>{tournamentEntries.length}</dd></div>
               <div><dt>Results</dt><dd>{results}</dd></div>
               <div><dt>Points</dt><dd>{points}</dd></div>
+              <div><dt>Registration closes</dt><dd>{tournament.registration_closes_at ? formatTournamentDate(tournament.registration_closes_at) : "Not set"}</dd></div>
             </dl>
+            <p className="small-note">{feeSummary(tournament)}</p>
             <div className="row-actions">
               <button className="secondary-button compact" onClick={() => editTournament(tournament)} type="button">Edit</button>
               <button className="danger-button compact" disabled={busy} onClick={() => deleteTournament(tournament.id)} type="button">Delete</button>
@@ -531,8 +635,38 @@ function editEntry(entry: TournamentEntry) {
                 <span className="tournament-summary-counts">
                   <b>{tournamentEntries.length}</b> entries
                   <b>{points}</b> points
+                  <b>{formatFee(schoolFeeTotals(tournament, tournamentEntries).reduce((total, school) => total + school.total, 0))}</b> fees
                 </span>
               </summary>
+              <section className="content-shell" style={{ margin: "14px 0" }}>
+                <h3 style={{ marginTop: 0 }}>School fee totals</h3>
+                {schoolFeeTotals(tournament, tournamentEntries).length === 0 ? (
+                  <p className="muted">No school entries yet.</p>
+                ) : (
+                  <div className="responsive-table">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>School</th>
+                          <th>Students</th>
+                          <th>Entries</th>
+                          <th>Total fee</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {schoolFeeTotals(tournament, tournamentEntries).map((school) => (
+                          <tr key={school.schoolId}>
+                            <td>{school.schoolName}</td>
+                            <td>{school.students}</td>
+                            <td>{school.entries}</td>
+                            <td>{formatFee(school.total)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </section>
               {tournamentEntries.length === 0 ? (
                 <article className="empty-state">No results imported for this tournament yet.</article>
               ) : (
