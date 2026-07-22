@@ -5,6 +5,8 @@ export const tournamentCategories = [
   "Sparring",
   "Sword Sparring",
   "Continuous Sparring",
+  "Inventive",
+  "Elevate",
 ] as const;
 
 export const tournamentResults = ["gold", "silver", "bronze", "participation"] as const;
@@ -36,7 +38,5 @@ export function normalizeOptionalTournamentResult(result: string | null | undefi
 
 export function normalizeTournamentCategory(category: string | null | undefined) {
   const normalized = String(category ?? "").trim();
-  return tournamentCategories.includes(normalized as (typeof tournamentCategories)[number])
-    ? normalized
-    : "";
+  return normalized;
 }

@@ -268,6 +268,11 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
   }
 
   function updateResultField(field: keyof typeof emptyResult, value: string) {
+    if (field === "tournament_id") {
+      setResultForm((current) => ({ ...current, tournament_id: value, category: "" }));
+      return;
+    }
+
     if (field === "student_id") {
       const selectedStudent = students.find((student) => student.id === value);
       setResultForm((current) => ({
@@ -688,6 +693,11 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
     return `R${value.toFixed(2)}`;
   }
 
+  function tournamentCategoryList(tournamentId: string) {
+    const tournament = tournaments.find((item) => item.id === tournamentId);
+    return tournament?.tournament_categories?.length ? tournament.tournament_categories : [...tournamentCategories];
+  }
+
   function feeRule(tournament: Tournament) {
     return {
       baseFee: Number(tournament.fee_structure?.base_fee ?? 0),
@@ -977,7 +987,7 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
         <form className="admin-form content-shell" onSubmit={saveResult}>
           <label>Tournament<select value={resultForm.tournament_id} onChange={(event) => updateResultField("tournament_id", event.target.value)} required>{tournaments.map((tournament) => <option key={tournament.id} value={tournament.id}>{tournament.name}</option>)}</select></label>
           <label>Student<select value={resultForm.student_id} onChange={(event) => updateResultField("student_id", event.target.value)} required>{students.map((student) => <option key={student.id} value={student.id}>{student.first_name} {student.last_name}</option>)}</select></label>
-          <label>Category<select value={resultForm.category} onChange={(event) => updateResultField("category", event.target.value)} required><option value="">Select category</option>{tournamentCategories.map((category) => <option key={category} value={category}>{category}</option>)}</select></label>
+          <label>Category<select value={resultForm.category} onChange={(event) => updateResultField("category", event.target.value)} required><option value="">Select category</option>{tournamentCategoryList(resultForm.tournament_id).map((category) => <option key={category} value={category}>{category}</option>)}</select></label>
           <label>Result<select value={resultForm.medal} onChange={(event) => updateResultField("medal", event.target.value)}>{tournamentResults.map((result) => <option key={result} value={result}>{result}</option>)}</select></label>
           <p className="small-note">Points will be calculated automatically: {tournamentPointsForResult(resultForm.medal) ?? 0} points.</p>
           <label>Result note<input value={resultForm.result_label} onChange={(event) => updateResultField("result_label", event.target.value)} /></label>
@@ -1081,12 +1091,12 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
           <label>Tournament<select value={registrationForm.tournament_id} onChange={(event) => updateRegistrationField("tournament_id", event.target.value)} required>{tournaments.map((tournament) => <option key={tournament.id} value={tournament.id}>{tournament.name}</option>)}</select></label>
           <label>Student<select value={registrationForm.student_id} onChange={(event) => updateRegistrationField("student_id", event.target.value)} required>{students.map((student) => <option key={student.id} value={student.id}>{student.first_name} {student.last_name}</option>)}</select></label>
           {editingRegistrationId ? (
-            <label>Tournament event<select value={registrationForm.category} onChange={(event) => updateRegistrationField("category", event.target.value)} required><option value="">Select event</option>{tournamentCategories.map((category) => <option key={category} value={category}>{category}</option>)}</select></label>
+            <label>Tournament event<select value={registrationForm.category} onChange={(event) => updateRegistrationField("category", event.target.value)} required><option value="">Select event</option>{tournamentCategoryList(registrationForm.tournament_id).map((category) => <option key={category} value={category}>{category}</option>)}</select></label>
           ) : (
             <fieldset style={{ border: "1px solid #d9dee7", borderRadius: 8, display: "grid", gap: 12, gridColumn: "1 / -1", padding: 16 }}>
               <legend style={{ fontWeight: 800, padding: "0 6px" }}>Tournament events</legend>
               <div style={{ display: "grid", gap: 10, gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}>
-                {tournamentCategories.map((category) => {
+                {tournamentCategoryList(registrationForm.tournament_id).map((category) => {
                   const alreadyRegistered = entries.some(
                     (entry) =>
                       entry.tournament_id === registrationForm.tournament_id &&
@@ -1297,7 +1307,7 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
           <h2>{editingResultId ? "Edit result" : "Add result"}</h2>
           <label>Tournament<select value={resultForm.tournament_id} onChange={(event) => updateResultField("tournament_id", event.target.value)} required>{tournaments.map((tournament) => <option key={tournament.id} value={tournament.id}>{tournament.name}</option>)}</select></label>
           <label>Student<select value={resultForm.student_id} onChange={(event) => updateResultField("student_id", event.target.value)} required>{students.map((student) => <option key={student.id} value={student.id}>{student.first_name} {student.last_name}</option>)}</select></label>
-          <label>Category<select value={resultForm.category} onChange={(event) => updateResultField("category", event.target.value)} required><option value="">Select category</option>{tournamentCategories.map((category) => <option key={category} value={category}>{category}</option>)}</select></label>
+          <label>Category<select value={resultForm.category} onChange={(event) => updateResultField("category", event.target.value)} required><option value="">Select category</option>{tournamentCategoryList(resultForm.tournament_id).map((category) => <option key={category} value={category}>{category}</option>)}</select></label>
           <label>Result<select value={resultForm.medal} onChange={(event) => updateResultField("medal", event.target.value)}>{tournamentResults.map((result) => <option key={result} value={result}>{result}</option>)}</select></label>
           <p className="small-note">Points will be calculated automatically: {tournamentPointsForResult(resultForm.medal) ?? 0} points.</p>
           <label>Result note<input value={resultForm.result_label} onChange={(event) => updateResultField("result_label", event.target.value)} /></label>

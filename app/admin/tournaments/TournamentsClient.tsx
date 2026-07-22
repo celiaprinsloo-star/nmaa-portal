@@ -23,6 +23,8 @@ const emptyFeeStructure = {
   additional_event_fee: "",
 };
 
+const defaultCategoriesText = tournamentCategories.join("\n");
+
 const emptyEntry = {
   tournament_id: "",
   student_id: "",
@@ -57,6 +59,7 @@ export default function TournamentsClient() {
   const [leaderboard, setLeaderboard] = useState<LeaderboardRow[]>([]);
   const [tournamentForm, setTournamentForm] = useState(emptyTournament);
   const [feeForm, setFeeForm] = useState(emptyFeeStructure);
+  const [categoriesText, setCategoriesText] = useState(defaultCategoriesText);
   const [entryForm, setEntryForm] = useState(emptyEntry);
   const [editingTournamentId, setEditingTournamentId] = useState("");
   const [editingEntryId, setEditingEntryId] = useState("");
@@ -120,6 +123,11 @@ export default function TournamentsClient() {
   }
 
   function updateEntryField(field: keyof typeof emptyEntry, value: string) {
+    if (field === "tournament_id") {
+      setEntryForm((current) => ({ ...current, tournament_id: value, category: "" }));
+      return;
+    }
+
     if (field === "student_id") {
       const selectedStudent = students.find((student) => student.id === value);
       setEntryForm((current) => ({
@@ -137,6 +145,7 @@ export default function TournamentsClient() {
     setEditingTournamentId("");
     setTournamentForm({ ...emptyTournament, province_id: provinces[0]?.id || "" });
     setFeeForm(emptyFeeStructure);
+    setCategoriesText(defaultCategoriesText);
   }
 
   function resetEntryForm() {
@@ -165,6 +174,7 @@ export default function TournamentsClient() {
       additional_event_fee:
         tournament.fee_structure?.additional_event_fee !== undefined ? String(tournament.fee_structure.additional_event_fee) : "",
     });
+    setCategoriesText((tournament.tournament_categories?.length ? tournament.tournament_categories : [...tournamentCategories]).join("\n"));
   }
 
 function editEntry(entry: TournamentEntry) {
@@ -190,6 +200,17 @@ function editEntry(entry: TournamentEntry) {
 
   function formatFee(value: number) {
     return `R${value.toFixed(2)}`;
+  }
+
+  function categoriesFromText() {
+    return Array.from(
+      new Set(categoriesText.split(/\r?\n/).map((category) => category.trim()).filter(Boolean)),
+    );
+  }
+
+  function tournamentCategoryList(tournamentId: string) {
+    const tournament = tournaments.find((item) => item.id === tournamentId);
+    return tournament?.tournament_categories?.length ? tournament.tournament_categories : [...tournamentCategories];
   }
 
   function feeRule(tournament: Tournament) {
@@ -271,6 +292,7 @@ function editEntry(entry: TournamentEntry) {
             included_events: Math.max(1, Number(feeForm.included_events) || 1),
             additional_event_fee: Number(feeForm.additional_event_fee) || 0,
           },
+          tournament_categories: categoriesFromText(),
         }),
       },
     );
@@ -537,6 +559,15 @@ function editEntry(entry: TournamentEntry) {
             </div>
             <p className="small-note">Examples: first event R350 and each additional event R50, or first two events R350 and each additional event R50.</p>
           </fieldset>
+          <label style={{ gridColumn: "1 / -1" }}>
+            Tournament categories
+            <textarea
+              onChange={(event) => setCategoriesText(event.target.value)}
+              rows={8}
+              value={categoriesText}
+            />
+          </label>
+          <p className="small-note">One category per line. Defaults include Inventive and Elevate.</p>
           <button className="primary-button compact" disabled={busy} type="submit">
             {editingTournamentId ? "Save tournament" : "Add tournament"}
           </button>
@@ -564,7 +595,7 @@ function editEntry(entry: TournamentEntry) {
             Category
             <select value={entryForm.category} onChange={(event) => updateEntryField("category", event.target.value)} required>
               <option value="">Select category</option>
-              {tournamentCategories.map((category) => (
+              {tournamentCategoryList(entryForm.tournament_id).map((category) => (
                 <option key={category} value={category}>{category}</option>
               ))}
             </select>
@@ -607,6 +638,7 @@ function editEntry(entry: TournamentEntry) {
               <div><dt>Results</dt><dd>{results}</dd></div>
               <div><dt>Points</dt><dd>{points}</dd></div>
               <div><dt>Registration closes</dt><dd>{tournament.registration_closes_at ? formatTournamentDate(tournament.registration_closes_at) : "Not set"}</dd></div>
+              <div><dt>Categories</dt><dd>{tournament.tournament_categories?.length ?? tournamentCategories.length}</dd></div>
             </dl>
             <p className="small-note">{feeSummary(tournament)}</p>
             <div className="row-actions">

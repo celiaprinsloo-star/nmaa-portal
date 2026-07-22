@@ -39,7 +39,7 @@ export async function GET(request: Request) {
     .order("last_name");
   const tournamentsQuery = supabase
     .from("tournaments")
-    .select("id,province_id,name,venue,starts_at,ends_at,registration_closes_at,fee_structure,provinces(name,code)")
+    .select("id,province_id,name,venue,starts_at,ends_at,registration_closes_at,fee_structure,tournament_categories,provinces(name,code)")
     .order("starts_at", { ascending: false });
 
   if (schoolIds.length > 0) {

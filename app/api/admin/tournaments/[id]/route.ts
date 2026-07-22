@@ -1,5 +1,6 @@
 import { requireAdmin } from "@/lib/server/requireAdmin";
 import { createSupabaseAdminClient } from "@/lib/supabaseAdmin";
+import { tournamentCategories } from "@/lib/tournamentRules";
 
 type TournamentRouteContext = {
   params: Promise<{ id: string }>;
@@ -15,6 +16,10 @@ function cleanTournamentBody(body: Record<string, unknown> | null) {
           return fees;
         }, {})
       : {};
+  const rawCategories = Array.isArray(body?.tournament_categories) ? body.tournament_categories : tournamentCategories;
+  const categories = Array.from(
+    new Set(rawCategories.map((category) => String(category).trim()).filter(Boolean)),
+  );
 
   return {
     province_id: String(body?.province_id ?? "").trim() || null,
@@ -24,6 +29,7 @@ function cleanTournamentBody(body: Record<string, unknown> | null) {
     ends_at: String(body?.ends_at ?? "").trim() || null,
     registration_closes_at: String(body?.registration_closes_at ?? "").trim() || null,
     fee_structure: feeStructure,
+    tournament_categories: categories.length > 0 ? categories : [...tournamentCategories],
   };
 }
 
@@ -47,7 +53,7 @@ export async function PATCH(request: Request, context: TournamentRouteContext) {
     .from("tournaments")
     .update(tournament)
     .eq("id", id)
-    .select("id,province_id,name,venue,starts_at,ends_at,registration_closes_at,fee_structure,provinces(name,code)")
+    .select("id,province_id,name,venue,starts_at,ends_at,registration_closes_at,fee_structure,tournament_categories,provinces(name,code)")
     .single();
 
   if (error) {
