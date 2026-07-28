@@ -202,6 +202,22 @@ function editEntry(entry: TournamentEntry) {
     return `R${value.toFixed(2)}`;
   }
 
+  function studentAge(dateOfBirth: string | null | undefined) {
+    if (!dateOfBirth) return "Not recorded";
+
+    const birthDate = new Date(dateOfBirth);
+    if (Number.isNaN(birthDate.getTime())) return "Not recorded";
+
+    const today = new Date();
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const hasBirthdayPassed =
+      today.getMonth() > birthDate.getMonth() ||
+      (today.getMonth() === birthDate.getMonth() && today.getDate() >= birthDate.getDate());
+
+    if (!hasBirthdayPassed) age -= 1;
+    return String(age);
+  }
+
   function categoriesFromText() {
     return Array.from(
       new Set(categoriesText.split(/\r?\n/).map((category) => category.trim()).filter(Boolean)),
@@ -707,6 +723,7 @@ function editEntry(entry: TournamentEntry) {
                     <thead>
                       <tr>
                         <th>Student</th>
+                        <th>Age</th>
                         <th>School</th>
                         <th>Category</th>
                         <th>Result</th>
@@ -718,6 +735,7 @@ function editEntry(entry: TournamentEntry) {
                       {tournamentEntries.map((entry) => (
                         <tr key={entry.id}>
                           <td>{entry.students?.first_name} {entry.students?.last_name}</td>
+                          <td>{studentAge(entry.students?.date_of_birth)}</td>
                           <td>{entry.schools?.name ?? "No school"}</td>
                           <td>{entry.category ?? "No category"}</td>
                           <td>{entry.result_label || entry.medal || "Entered"}</td>

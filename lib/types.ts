@@ -115,7 +115,7 @@ export type TournamentEntry = {
   medal: string | null;
   points: number | null;
   status: string;
-  students?: Pick<Student, "first_name" | "last_name" | "belt_rank"> | null;
+  students?: Pick<Student, "first_name" | "last_name" | "belt_rank" | "date_of_birth"> | null;
   schools?: Pick<School, "name"> | null;
   tournaments?: Pick<Tournament, "name"> | null;
 };

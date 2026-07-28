@@ -46,7 +46,7 @@ export async function PATCH(request: Request, context: EntryRouteContext) {
     .from("tournament_entries")
     .update(entry)
     .eq("id", id)
-    .select("id,tournament_id,student_id,school_id,category,result_label,medal,points,status,students(first_name,last_name,belt_rank),schools(name),tournaments(name)")
+    .select("id,tournament_id,student_id,school_id,category,result_label,medal,points,status,students(first_name,last_name,belt_rank,date_of_birth),schools(name),tournaments(name)")
     .single();
 
   if (error) {
