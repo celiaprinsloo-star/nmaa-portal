@@ -6,7 +6,8 @@ type OrderRouteContext = {
   params: Promise<{ id: string }>;
 };
 
-const allowedStatuses = new Set(["submitted", "processing", "ordered", "ready", "completed", "cancelled"]);
+const allowedStatuses = new Set(["submitted", "processing", "ordered", "ready", "returned", "completed", "cancelled"]);
+const allowedPaymentStatuses = new Set(["outstanding", "paid"]);
 
 export async function PATCH(request: Request, context: OrderRouteContext) {
   const { user, response } = await requireAdmin(request);
@@ -16,18 +17,23 @@ export async function PATCH(request: Request, context: OrderRouteContext) {
   const { id } = await context.params;
   const body = await request.json().catch(() => null);
   const status = String(body?.status ?? "").trim();
+  const paymentStatus = String(body?.payment_status ?? "").trim();
   const adminNotes = String(body?.admin_notes ?? "").trim() || null;
 
   if (!allowedStatuses.has(status)) {
     return Response.json({ error: "Choose a valid order status." }, { status: 400 });
   }
 
+  if (!allowedPaymentStatuses.has(paymentStatus)) {
+    return Response.json({ error: "Choose a valid payment status." }, { status: 400 });
+  }
+
   const supabase = createSupabaseAdminClient();
   const { data, error } = await supabase
     .from("school_orders")
-    .update({ status, admin_notes: adminNotes, updated_at: new Date().toISOString() })
+    .update({ status, payment_status: paymentStatus, admin_notes: adminNotes, updated_at: new Date().toISOString() })
     .eq("id", id)
-    .select("id,status,admin_notes")
+    .select("id,status,payment_status,admin_notes")
     .single();
 
   if (error) {
@@ -39,8 +45,8 @@ export async function PATCH(request: Request, context: OrderRouteContext) {
     action: "school_order.status_changed",
     entityTable: "school_orders",
     entityId: id,
-    summary: `Order marked ${status}`,
-    metadata: { status },
+    summary: `Order marked ${status} and ${paymentStatus}`,
+    metadata: { status, payment_status: paymentStatus },
   });
 
   return Response.json({ order: data });

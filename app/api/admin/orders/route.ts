@@ -10,14 +10,18 @@ export async function GET(request: Request) {
   const supabase = createSupabaseAdminClient();
   const url = new URL(request.url);
   const status = url.searchParams.get("status")?.trim();
+  const orderType = url.searchParams.get("order_type")?.trim();
+  const paymentStatus = url.searchParams.get("payment_status")?.trim();
   const search = url.searchParams.get("search")?.trim();
   const { page, pageSize, from, to } = paginationFromUrl(request.url);
   const query = supabase
     .from("school_orders")
-    .select("id,school_id,submitted_by,contact_name,contact_email,notes,status,admin_notes,total_zar,total_usd,created_at,schools(name,contact_email),school_order_items(*)", { count: "exact" })
+    .select("id,school_id,submitted_by,contact_name,contact_email,notes,order_type,status,payment_status,admin_notes,total_zar,total_usd,created_at,schools(name,contact_email),school_order_items(*)", { count: "exact" })
     .order("created_at", { ascending: false });
 
   if (status) query.eq("status", status);
+  if (orderType) query.eq("order_type", orderType);
+  if (paymentStatus) query.eq("payment_status", paymentStatus);
   if (search) query.or(`contact_name.ilike.%${search}%,contact_email.ilike.%${search}%`);
   query.range(from, to);
 

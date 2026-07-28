@@ -9,7 +9,9 @@ import { money } from "@/lib/orderCatalog";
 import { createSupabaseBrowserClient } from "@/lib/supabaseClient";
 import type { OrderCatalogItem, SchoolOrder } from "@/lib/types";
 
-const statuses = ["submitted", "processing", "ordered", "ready", "completed", "cancelled"];
+const statuses = ["submitted", "processing", "ordered", "ready", "returned", "completed", "cancelled"];
+const paymentStatuses = ["outstanding", "paid"];
+const emptyOrderFilters = { search: "", status: "", order_type: "", payment_status: "" };
 
 const catalogGridStyle: CSSProperties = {
   display: "grid",
@@ -79,18 +81,21 @@ export default function OrdersAdminClient() {
   const [catalogForm, setCatalogForm] = useState(emptyCatalogItem);
   const [editingCatalogId, setEditingCatalogId] = useState("");
   const [statusDrafts, setStatusDrafts] = useState<Record<string, string>>({});
+  const [paymentDrafts, setPaymentDrafts] = useState<Record<string, string>>({});
   const [noteDrafts, setNoteDrafts] = useState<Record<string, string>>({});
-  const [filters, setFilters] = useState({ search: "", status: "" });
+  const [filters, setFilters] = useState(emptyOrderFilters);
   const [pagination, setPagination] = useState({ page: 1, page_size: 25, total: 0, has_more: false });
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
-  async function loadOrders(activeToken: string, page = 1, append = false) {
+  async function loadOrders(activeToken: string, page = 1, append = false, activeFilters = filters) {
     const query = new URLSearchParams();
     query.set("page", String(page));
     query.set("page_size", "25");
-    if (filters.search) query.set("search", filters.search);
-    if (filters.status) query.set("status", filters.status);
+    if (activeFilters.search) query.set("search", activeFilters.search);
+    if (activeFilters.status) query.set("status", activeFilters.status);
+    if (activeFilters.order_type) query.set("order_type", activeFilters.order_type);
+    if (activeFilters.payment_status) query.set("payment_status", activeFilters.payment_status);
     const [ordersResponse, catalogResponse] = await Promise.all([
       fetch(`/api/admin/orders?${query.toString()}`, {
         headers: { Authorization: `Bearer ${activeToken}` },
@@ -116,6 +121,9 @@ export default function OrdersAdminClient() {
     setCatalog(catalogPayload.items);
     setStatusDrafts(
       Object.fromEntries(payload.orders.map((order: SchoolOrder) => [order.id, order.status])),
+    );
+    setPaymentDrafts(
+      Object.fromEntries(payload.orders.map((order: SchoolOrder) => [order.id, order.payment_status])),
     );
     setNoteDrafts(
       Object.fromEntries(payload.orders.map((order: SchoolOrder) => [order.id, order.admin_notes ?? ""])),
@@ -155,6 +163,7 @@ export default function OrdersAdminClient() {
       },
       body: JSON.stringify({
         status: statusDrafts[orderId],
+        payment_status: paymentDrafts[orderId],
         admin_notes: noteDrafts[orderId],
       }),
     });
@@ -311,9 +320,11 @@ export default function OrdersAdminClient() {
           <h2>Find orders</h2>
           <label>Search<input value={filters.search} onChange={(event) => updateFilter("search", event.target.value)} placeholder="Contact name or email" /></label>
           <label>Status<select value={filters.status} onChange={(event) => updateFilter("status", event.target.value)}><option value="">All statuses</option>{statuses.map((status) => <option key={status} value={status}>{status}</option>)}</select></label>
+          <label>Order type<select value={filters.order_type} onChange={(event) => updateFilter("order_type", event.target.value)}><option value="">All types</option><option value="purchase">Purchase</option><option value="consignment">Consignment for sizing</option></select></label>
+          <label>Payment<select value={filters.payment_status} onChange={(event) => updateFilter("payment_status", event.target.value)}><option value="">All payment statuses</option>{paymentStatuses.map((status) => <option key={status} value={status}>{status}</option>)}</select></label>
           <div className="row-actions">
             <button className="primary-button compact" onClick={() => loadOrders(token)} type="button">Apply filters</button>
-            <button className="secondary-button compact" onClick={() => { setFilters({ search: "", status: "" }); window.setTimeout(() => loadOrders(token), 0); }} type="button">Clear</button>
+            <button className="secondary-button compact" onClick={() => { setFilters(emptyOrderFilters); loadOrders(token, 1, false, emptyOrderFilters); }} type="button">Clear</button>
           </div>
           <p className="small-note">Showing {orders.length} of {pagination.total} orders.</p>
         </div>
@@ -327,6 +338,8 @@ export default function OrdersAdminClient() {
                   <h2>{order.schools?.name ?? "School"} - Order {order.id.slice(0, 8)}</h2>
                   <dl className="detail-grid">
                     <div><dt>Date</dt><dd>{new Date(order.created_at).toLocaleString()}</dd></div>
+                    <div><dt>Type</dt><dd>{order.order_type === "consignment" ? "Consignment for sizing" : "Purchase"}</dd></div>
+                    <div><dt>Payment</dt><dd><span className={`status-pill status-${order.payment_status}`}>{order.payment_status}</span></dd></div>
                     <div><dt>Contact</dt><dd>{order.contact_name ?? "No contact"}</dd></div>
                     <div><dt>Email</dt><dd>{order.contact_email ?? order.schools?.contact_email ?? "No email"}</dd></div>
                   </dl>
@@ -344,9 +357,13 @@ export default function OrdersAdminClient() {
               </div>
 
               {order.notes ? <p className="muted">School notes: {order.notes}</p> : null}
+              {order.order_type === "consignment" ? (
+                <p className="form-error">Consignment for sizing: items must be returned within two weeks. If not returned, the school owner remains responsible for the fees.</p>
+              ) : null}
 
               <div className="order-admin-actions">
                 <label>Status<select value={statusDrafts[order.id] ?? order.status} onChange={(event) => setStatusDrafts((current) => ({ ...current, [order.id]: event.target.value }))}>{statuses.map((status) => <option key={status} value={status}>{status}</option>)}</select></label>
+                <label>Payment<select value={paymentDrafts[order.id] ?? order.payment_status} onChange={(event) => setPaymentDrafts((current) => ({ ...current, [order.id]: event.target.value }))}>{paymentStatuses.map((status) => <option key={status} value={status}>{status}</option>)}</select></label>
                 <label>Admin notes<input value={noteDrafts[order.id] ?? ""} onChange={(event) => setNoteDrafts((current) => ({ ...current, [order.id]: event.target.value }))} /></label>
                 <button className="primary-button compact" disabled={busy} onClick={() => updateOrder(order.id)} type="button">Save</button>
               </div>

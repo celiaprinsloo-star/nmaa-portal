@@ -230,7 +230,9 @@ export type SchoolOrder = {
   contact_name: string | null;
   contact_email: string | null;
   notes: string | null;
+  order_type: "purchase" | "consignment";
   status: string;
+  payment_status: "outstanding" | "paid";
   admin_notes: string | null;
   total_zar: number;
   total_usd: number;

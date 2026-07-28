@@ -46,7 +46,7 @@ export async function GET(request: Request) {
   const supabase = createSupabaseAdminClient();
   const { data, error } = await supabase
     .from("school_orders")
-    .select("id,school_id,submitted_by,contact_name,contact_email,notes,status,admin_notes,total_zar,total_usd,created_at,school_order_items(*)")
+    .select("id,school_id,submitted_by,contact_name,contact_email,notes,order_type,status,payment_status,admin_notes,total_zar,total_usd,created_at,school_order_items(*)")
     .eq("school_id", user.profile.school_id)
     .order("created_at", { ascending: false });
 
@@ -67,6 +67,7 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json().catch(() => null);
+  const orderType = String(body?.order_type ?? "purchase").trim() === "consignment" ? "consignment" : "purchase";
   const supabase = createSupabaseAdminClient();
   const { data: catalog, error: catalogError } = await supabase
     .from("order_catalog_items")
@@ -98,6 +99,8 @@ export async function POST(request: Request) {
       contact_name: String(body?.contact_name ?? user.profile.full_name ?? "").trim() || null,
       contact_email: String(body?.contact_email ?? user.email ?? "").trim() || null,
       notes: String(body?.notes ?? "").trim() || null,
+      order_type: orderType,
+      payment_status: "outstanding",
       total_zar: totalZar,
       total_usd: totalUsd,
     })

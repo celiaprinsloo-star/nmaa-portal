@@ -612,6 +612,22 @@ label {
   color: #b54708;
 }
 
+.status-pill.status-outstanding {
+  background: #fffaeb;
+  color: #b54708;
+}
+
+.status-pill.status-paid {
+  background: #ecfdf3;
+  color: #027a48;
+}
+
+.status-pill.status-returned,
+.status-pill.status-completed {
+  background: #eff6ff;
+  color: #175cd3;
+}
+
 .status-pill.status-suspended,
 .status-pill.status-expired {
   background: #fff4f2;

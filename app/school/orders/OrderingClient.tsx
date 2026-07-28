@@ -84,6 +84,7 @@ export default function OrderingClient() {
   const [contactName, setContactName] = useState("");
   const [contactEmail, setContactEmail] = useState("");
   const [notes, setNotes] = useState("");
+  const [orderType, setOrderType] = useState<"purchase" | "consignment">("purchase");
   const [orders, setOrders] = useState<SchoolOrder[]>([]);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -204,6 +205,7 @@ export default function OrderingClient() {
         contact_name: contactName,
         contact_email: contactEmail,
         notes,
+        order_type: orderType,
         items: selectedItems.map((item) => ({
           catalog_item_id: item.id,
           quantity: quantities[item.id] ?? 0,
@@ -220,7 +222,8 @@ export default function OrderingClient() {
 
     setQuantities({});
     setNotes("");
-    setMessage("Order submitted to admin for processing.");
+    setOrderType("purchase");
+    setMessage(orderType === "consignment" ? "Consignment order submitted to admin for processing." : "Order submitted to admin for processing.");
     await refreshOrders(token);
   }
 
@@ -297,6 +300,20 @@ export default function OrderingClient() {
         <aside className="order-summary-panel" style={summaryPanelStyle}>
           <h2>Cart</h2>
           <p className="small-note">Gear may only be supplied to students of your own school.</p>
+          <label>
+            Order type
+            <select value={orderType} onChange={(event) => setOrderType(event.target.value as "purchase" | "consignment")}>
+              <option value="purchase">Purchase order</option>
+              <option value="consignment">Consignment for sizing</option>
+            </select>
+          </label>
+          {orderType === "consignment" ? (
+            <section className="content-shell" style={{ padding: 12 }}>
+              <p className="small-note">
+                Consignment items are taken for sizing and must be returned within two weeks. If items are not returned after two weeks, the school owner remains responsible for the fees.
+              </p>
+            </section>
+          ) : null}
           <label>Contact person<input value={contactName} onChange={(event) => setContactName(event.target.value)} /></label>
           <label>Contact email<input type="email" value={contactEmail} onChange={(event) => setContactEmail(event.target.value)} /></label>
           <label>Notes<textarea rows={4} value={notes} onChange={(event) => setNotes(event.target.value)} /></label>
@@ -334,13 +351,21 @@ export default function OrderingClient() {
                 <h2>Order {order.id.slice(0, 8)}</h2>
                 <dl className="detail-grid">
                   <div><dt>Date</dt><dd>{new Date(order.created_at).toLocaleDateString()}</dd></div>
+                  <div><dt>Type</dt><dd>{order.order_type === "consignment" ? "Consignment for sizing" : "Purchase"}</dd></div>
+                  <div><dt>Payment</dt><dd><span className={`status-pill status-${order.payment_status}`}>{order.payment_status}</span></dd></div>
                   <div><dt>Total ZAR</dt><dd>{money(Number(order.total_zar), "ZAR")}</dd></div>
                   <div><dt>Total USD</dt><dd>${Number(order.total_usd).toFixed(2)}</dd></div>
                   <div><dt>Lines</dt><dd>{order.school_order_items?.length ?? 0}</dd></div>
                 </dl>
+                {order.order_type === "consignment" ? (
+                  <p className="small-note">Return within two weeks to avoid being responsible for the fees.</p>
+                ) : null}
                 {order.admin_notes ? <p>{order.admin_notes}</p> : null}
               </div>
-              <span className={`status-pill status-${order.status}`}>{order.status}</span>
+              <div className="row-actions">
+                <span className={`status-pill status-${order.payment_status}`}>{order.payment_status}</span>
+                <span className={`status-pill status-${order.status}`}>{order.status}</span>
+              </div>
             </article>
           ))
         )}
