@@ -14,6 +14,7 @@ function cleanEntryBody(body: Record<string, unknown> | null) {
     result_label: String(body?.result_label ?? "").trim() || null,
     medal,
     points: medal ? tournamentPointsForResult(medal) : null,
+    special_needs: Boolean(body?.special_needs),
     status: String(body?.status ?? "entered").trim() || "entered",
   };
 }
@@ -40,7 +41,7 @@ export async function POST(request: Request) {
   const { data, error } = await supabase
     .from("tournament_entries")
     .insert(entry)
-    .select("id,tournament_id,student_id,school_id,category,result_label,medal,points,status,students(first_name,last_name,belt_rank,date_of_birth),schools(name),tournaments(name)")
+    .select("id,tournament_id,student_id,school_id,category,result_label,medal,points,special_needs,status,students(first_name,last_name,belt_rank,date_of_birth),schools(name),tournaments(name)")
     .single();
 
   if (error) {

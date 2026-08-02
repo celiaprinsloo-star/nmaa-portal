@@ -87,6 +87,7 @@ const emptyResult = {
   category: "",
   medal: "participation",
   result_label: "",
+  special_needs: false,
   status: "entered",
 };
 
@@ -97,6 +98,7 @@ const emptyRegistration = {
   category: "",
   medal: "",
   result_label: "",
+  special_needs: false,
   status: "registered",
 };
 
@@ -490,6 +492,7 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
       category: entry.category ?? "",
       medal: entry.medal ?? "participation",
       result_label: entry.result_label ?? "",
+      special_needs: entry.special_needs,
       status: entry.status,
     });
   }
@@ -582,6 +585,7 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
       category: entry.category ?? "",
       medal: "",
       result_label: "",
+      special_needs: entry.special_needs,
       status: "registered",
     });
     window.setTimeout(() => registrationFormRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
@@ -1090,6 +1094,7 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
         <form className="admin-form content-shell" onSubmit={saveRegistration} ref={registrationFormRef}>
           <label>Tournament<select value={registrationForm.tournament_id} onChange={(event) => updateRegistrationField("tournament_id", event.target.value)} required>{tournaments.map((tournament) => <option key={tournament.id} value={tournament.id}>{tournament.name}</option>)}</select></label>
           <label>Student<select value={registrationForm.student_id} onChange={(event) => updateRegistrationField("student_id", event.target.value)} required>{students.map((student) => <option key={student.id} value={student.id}>{student.first_name} {student.last_name}</option>)}</select></label>
+          <label className="checkbox-label"><input checked={registrationForm.special_needs} onChange={(event) => setRegistrationForm((current) => ({ ...current, special_needs: event.target.checked }))} type="checkbox" /> Special needs</label>
           {editingRegistrationId ? (
             <label>Tournament event<select value={registrationForm.category} onChange={(event) => updateRegistrationField("category", event.target.value)} required><option value="">Select event</option>{tournamentCategoryList(registrationForm.tournament_id).map((category) => <option key={category} value={category}>{category}</option>)}</select></label>
           ) : (
@@ -1152,6 +1157,7 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
                         <th>Student</th>
                         <th>Rank</th>
                         <th>Category</th>
+                        <th>Special needs</th>
                         <th>Status</th>
                         <th>Result</th>
                         <th>Actions</th>
@@ -1163,6 +1169,7 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
                           <td>{entry.students?.first_name} {entry.students?.last_name}</td>
                           <td>{entry.students?.belt_rank ?? "No rank"}</td>
                           <td>{entry.category ?? "No category"}</td>
+                          <td>{entry.special_needs ? "Yes" : "No"}</td>
                           <td>{entry.status}</td>
                           <td>{entry.medal ? `${entry.medal} (${entry.points ?? 0} pts)` : "Pending result"}</td>
                           <td>

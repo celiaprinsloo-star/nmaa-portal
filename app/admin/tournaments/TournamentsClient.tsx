@@ -32,6 +32,7 @@ const emptyEntry = {
   category: "",
   result_label: "",
   medal: "participation",
+  special_needs: false,
   status: "entered",
 };
 
@@ -186,6 +187,7 @@ function editEntry(entry: TournamentEntry) {
       category: entry.category ?? "",
       result_label: entry.result_label ?? "",
       medal: entry.medal ?? "participation",
+      special_needs: entry.special_needs,
       status: entry.status,
     });
   }
@@ -616,6 +618,7 @@ function editEntry(entry: TournamentEntry) {
               ))}
             </select>
           </label>
+          <label className="checkbox-label"><input checked={entryForm.special_needs} onChange={(event) => setEntryForm((current) => ({ ...current, special_needs: event.target.checked }))} type="checkbox" /> Special needs</label>
           <label>
             Result
             <select value={entryForm.medal} onChange={(event) => updateEntryField("medal", event.target.value)}>
@@ -726,6 +729,7 @@ function editEntry(entry: TournamentEntry) {
                         <th>Age</th>
                         <th>School</th>
                         <th>Category</th>
+                        <th>Special needs</th>
                         <th>Result</th>
                         <th>Points</th>
                         <th>Actions</th>
@@ -738,6 +742,7 @@ function editEntry(entry: TournamentEntry) {
                           <td>{studentAge(entry.students?.date_of_birth)}</td>
                           <td>{entry.schools?.name ?? "No school"}</td>
                           <td>{entry.category ?? "No category"}</td>
+                          <td>{entry.special_needs ? "Yes" : "No"}</td>
                           <td>{entry.result_label || entry.medal || "Entered"}</td>
                           <td>{entry.points ?? 0}</td>
                           <td>
