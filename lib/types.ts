@@ -242,6 +242,22 @@ export type SchoolOrder = {
   school_order_items?: SchoolOrderItem[];
 };
 
+export type SchoolInvoice = {
+  id: string;
+  school_id: string;
+  invoice_number: string;
+  title: string;
+  description: string | null;
+  amount_zar: number;
+  status: "outstanding" | "paid" | "cancelled";
+  due_date: string | null;
+  admin_notes: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+  schools?: Pick<School, "name" | "contact_email"> | null;
+};
+
 export type OrderCatalogItem = {
   id: string;
   section: string;

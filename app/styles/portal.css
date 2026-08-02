@@ -629,7 +629,8 @@ label {
 }
 
 .status-pill.status-suspended,
-.status-pill.status-expired {
+.status-pill.status-expired,
+.status-pill.status-cancelled {
   background: #fff4f2;
   color: var(--danger);
 }
