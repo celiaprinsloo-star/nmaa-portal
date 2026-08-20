@@ -3,7 +3,7 @@ import { logAuditEvent } from "@/lib/server/audit";
 import { paginationFromUrl, paginationPayload } from "@/lib/server/pagination";
 import { createSupabaseAdminClient } from "@/lib/supabaseAdmin";
 
-const invoiceSelect = "id,school_id,invoice_number,title,description,amount_zar,status,due_date,admin_notes,created_by,created_at,updated_at,schools(name,contact_email)";
+const invoiceSelect = "id,school_id,invoice_number,title,description,amount_zar,status,due_date,admin_notes,source_order_id,created_by,created_at,updated_at,schools(name,contact_email)";
 const allowedStatuses = new Set(["outstanding", "paid", "cancelled"]);
 
 function cleanInvoiceBody(body: Record<string, unknown> | null) {
@@ -16,6 +16,7 @@ function cleanInvoiceBody(body: Record<string, unknown> | null) {
     status: String(body?.status ?? "outstanding").trim() || "outstanding",
     due_date: String(body?.due_date ?? "").trim() || null,
     admin_notes: String(body?.admin_notes ?? "").trim() || null,
+    source_order_id: String(body?.source_order_id ?? "").trim() || null,
   };
 }
 

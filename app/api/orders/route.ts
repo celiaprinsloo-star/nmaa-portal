@@ -46,7 +46,7 @@ export async function GET(request: Request) {
   const supabase = createSupabaseAdminClient();
   const { data, error } = await supabase
     .from("school_orders")
-    .select("id,school_id,submitted_by,contact_name,contact_email,notes,order_type,status,payment_status,admin_notes,total_zar,total_usd,created_at,school_order_items(*)")
+    .select("id,school_id,submitted_by,contact_name,contact_email,notes,order_type,status,payment_status,admin_notes,discount_zar,discount_note,total_zar,total_usd,created_at,school_order_items(*)")
     .eq("school_id", user.profile.school_id)
     .order("created_at", { ascending: false });
 

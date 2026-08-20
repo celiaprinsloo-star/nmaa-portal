@@ -1,7 +1,7 @@
 import { requireApprovedUser } from "@/lib/server/access";
 import { createSupabaseAdminClient } from "@/lib/supabaseAdmin";
 
-const invoiceSelect = "id,school_id,invoice_number,title,description,amount_zar,status,due_date,admin_notes,created_by,created_at,updated_at,schools(name,contact_email)";
+const invoiceSelect = "id,school_id,invoice_number,title,description,amount_zar,status,due_date,admin_notes,source_order_id,created_by,created_at,updated_at,schools(name,contact_email)";
 
 export async function GET(request: Request) {
   const { user, response } = await requireApprovedUser(request);

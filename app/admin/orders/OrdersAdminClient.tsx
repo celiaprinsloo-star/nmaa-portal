@@ -83,6 +83,9 @@ export default function OrdersAdminClient() {
   const [statusDrafts, setStatusDrafts] = useState<Record<string, string>>({});
   const [paymentDrafts, setPaymentDrafts] = useState<Record<string, string>>({});
   const [noteDrafts, setNoteDrafts] = useState<Record<string, string>>({});
+  const [discountDrafts, setDiscountDrafts] = useState<Record<string, string>>({});
+  const [discountNoteDrafts, setDiscountNoteDrafts] = useState<Record<string, string>>({});
+  const [itemDrafts, setItemDrafts] = useState<Record<string, Record<string, { quantity: string; instructor_price: string }>>>({});
   const [filters, setFilters] = useState(emptyOrderFilters);
   const [pagination, setPagination] = useState({ page: 1, page_size: 25, total: 0, has_more: false });
   const [error, setError] = useState("");
@@ -128,6 +131,28 @@ export default function OrdersAdminClient() {
     setNoteDrafts(
       Object.fromEntries(payload.orders.map((order: SchoolOrder) => [order.id, order.admin_notes ?? ""])),
     );
+    setDiscountDrafts(
+      Object.fromEntries(payload.orders.map((order: SchoolOrder) => [order.id, String(order.discount_zar ?? 0)])),
+    );
+    setDiscountNoteDrafts(
+      Object.fromEntries(payload.orders.map((order: SchoolOrder) => [order.id, order.discount_note ?? ""])),
+    );
+    setItemDrafts(
+      Object.fromEntries(
+        payload.orders.map((order: SchoolOrder) => [
+          order.id,
+          Object.fromEntries(
+            (order.school_order_items ?? []).map((item) => [
+              item.id,
+              {
+                quantity: String(item.quantity),
+                instructor_price: String(item.instructor_price ?? 0),
+              },
+            ]),
+          ),
+        ]),
+      ),
+    );
     setError("");
   }
 
@@ -154,6 +179,8 @@ export default function OrdersAdminClient() {
   async function updateOrder(orderId: string) {
     setBusy(true);
     setError("");
+    const order = orders.find((item) => item.id === orderId);
+    const canAdjustPrices = !order?.invoice_id;
 
     const response = await fetch(`/api/admin/orders/${orderId}`, {
       method: "PATCH",
@@ -165,6 +192,15 @@ export default function OrdersAdminClient() {
         status: statusDrafts[orderId],
         payment_status: paymentDrafts[orderId],
         admin_notes: noteDrafts[orderId],
+        discount_zar: discountDrafts[orderId],
+        discount_note: discountNoteDrafts[orderId],
+        items: canAdjustPrices
+          ? Object.entries(itemDrafts[orderId] ?? {}).map(([id, item]) => ({
+              id,
+              quantity: item.quantity,
+              instructor_price: item.instructor_price,
+            }))
+          : [],
       }),
     });
     const payload = await response.json();
@@ -184,6 +220,39 @@ export default function OrdersAdminClient() {
 
   function updateFilter(field: keyof typeof filters, value: string) {
     setFilters((current) => ({ ...current, [field]: value }));
+  }
+
+  function updateItemDraft(orderId: string, itemId: string, field: "quantity" | "instructor_price", value: string) {
+    setItemDrafts((current) => ({
+      ...current,
+      [orderId]: {
+        ...(current[orderId] ?? {}),
+        [itemId]: {
+          quantity: current[orderId]?.[itemId]?.quantity ?? "0",
+          instructor_price: current[orderId]?.[itemId]?.instructor_price ?? "0",
+          [field]: value,
+        },
+      },
+    }));
+  }
+
+  function draftOrderTotal(order: SchoolOrder) {
+    const lineTotals = (order.school_order_items ?? []).reduce(
+      (totals, item) => {
+        const draft = itemDrafts[order.id]?.[item.id];
+        const quantity = Number(draft?.quantity ?? item.quantity) || 0;
+        const price = Number(draft?.instructor_price ?? item.instructor_price ?? 0) || 0;
+        const lineTotal = quantity * price;
+        if (item.currency === "USD") totals.usd += lineTotal;
+        else totals.zar += lineTotal;
+        return totals;
+      },
+      { zar: 0, usd: 0 },
+    );
+    return {
+      zar: Math.max(0, lineTotals.zar - (Number(discountDrafts[order.id] ?? order.discount_zar ?? 0) || 0)),
+      usd: lineTotals.usd,
+    };
   }
 
   function editCatalogItem(item: OrderCatalogItem) {
@@ -340,6 +409,7 @@ export default function OrdersAdminClient() {
                     <div><dt>Date</dt><dd>{new Date(order.created_at).toLocaleString()}</dd></div>
                     <div><dt>Type</dt><dd>{order.order_type === "consignment" ? "Consignment for sizing" : "Purchase"}</dd></div>
                     <div><dt>Payment</dt><dd><span className={`status-pill status-${order.payment_status}`}>{order.payment_status}</span></dd></div>
+                    <div><dt>Invoice</dt><dd>{order.invoice_number ?? "Not created yet"}</dd></div>
                     <div><dt>Contact</dt><dd>{order.contact_name ?? "No contact"}</dd></div>
                     <div><dt>Email</dt><dd>{order.contact_email ?? order.schools?.contact_email ?? "No email"}</dd></div>
                   </dl>
@@ -356,6 +426,47 @@ export default function OrdersAdminClient() {
                 ))}
               </div>
 
+              <details className="content-shell" style={{ padding: 14 }}>
+                <summary style={{ cursor: "pointer", fontWeight: 800 }}>Adjust order before invoicing</summary>
+                <p className="small-note">
+                  {order.invoice_id
+                    ? `Locked because invoice ${order.invoice_number} has been created.`
+                    : "Price changes and discounts are locked after the processing invoice is created."}
+                </p>
+                <div className="responsive-table">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Item</th>
+                        <th>Qty</th>
+                        <th>Actual price</th>
+                        <th>Draft line total</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(order.school_order_items ?? []).map((item) => {
+                        const draft = itemDrafts[order.id]?.[item.id];
+                        const quantity = draft?.quantity ?? String(item.quantity);
+                        const price = draft?.instructor_price ?? String(item.instructor_price ?? 0);
+                        const lineTotal = (Number(quantity) || 0) * (Number(price) || 0);
+                        return (
+                          <tr key={item.id}>
+                            <td>{item.item}{item.size ? ` | ${item.size}` : ""}</td>
+                            <td><input disabled={Boolean(order.invoice_id)} min="0" style={{ minWidth: 90 }} type="number" value={quantity} onChange={(event) => updateItemDraft(order.id, item.id, "quantity", event.target.value)} /></td>
+                            <td><input disabled={Boolean(order.invoice_id)} min="0" step="0.01" style={{ minWidth: 120 }} type="number" value={price} onChange={(event) => updateItemDraft(order.id, item.id, "instructor_price", event.target.value)} /></td>
+                            <td>{item.currency === "USD" ? `$${lineTotal.toFixed(2)}` : money(lineTotal, "ZAR")}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="admin-form" style={{ marginTop: 12 }}>
+                  <label>ZAR discount<input disabled={Boolean(order.invoice_id)} min="0" step="0.01" type="number" value={discountDrafts[order.id] ?? "0"} onChange={(event) => setDiscountDrafts((current) => ({ ...current, [order.id]: event.target.value }))} /></label>
+                  <label>Discount note<input disabled={Boolean(order.invoice_id)} value={discountNoteDrafts[order.id] ?? ""} onChange={(event) => setDiscountNoteDrafts((current) => ({ ...current, [order.id]: event.target.value }))} placeholder="Reason for discount" /></label>
+                </div>
+              </details>
+
               {order.notes ? <p className="muted">School notes: {order.notes}</p> : null}
               {order.order_type === "consignment" ? (
                 <p className="form-error">Consignment for sizing: items must be returned within two weeks. If not returned, the school owner remains responsible for the fees.</p>
@@ -369,8 +480,8 @@ export default function OrdersAdminClient() {
               </div>
 
               <div className="order-admin-total">
-                <strong>{money(Number(order.total_zar), "ZAR")}</strong>
-                <strong>${Number(order.total_usd).toFixed(2)}</strong>
+                <strong>{money(draftOrderTotal(order).zar, "ZAR")}</strong>
+                <strong>${draftOrderTotal(order).usd.toFixed(2)}</strong>
               </div>
             </article>
           ))

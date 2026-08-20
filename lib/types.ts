@@ -235,9 +235,13 @@ export type SchoolOrder = {
   status: string;
   payment_status: "outstanding" | "paid";
   admin_notes: string | null;
+  discount_zar: number;
+  discount_note: string | null;
   total_zar: number;
   total_usd: number;
   created_at: string;
+  invoice_id?: string | null;
+  invoice_number?: string | null;
   schools?: Pick<School, "name" | "contact_email"> | null;
   school_order_items?: SchoolOrderItem[];
 };
@@ -252,6 +256,7 @@ export type SchoolInvoice = {
   status: "outstanding" | "paid" | "cancelled";
   due_date: string | null;
   admin_notes: string | null;
+  source_order_id: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;

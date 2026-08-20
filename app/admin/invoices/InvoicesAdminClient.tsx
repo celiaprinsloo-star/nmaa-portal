@@ -18,6 +18,7 @@ const emptyInvoice = {
   status: "outstanding",
   due_date: "",
   admin_notes: "",
+  source_order_id: "",
 };
 
 const emptyFilters = {
@@ -132,6 +133,7 @@ export default function InvoicesAdminClient() {
       status: invoice.status,
       due_date: invoice.due_date ?? "",
       admin_notes: invoice.admin_notes ?? "",
+      source_order_id: invoice.source_order_id ?? "",
     });
     window.setTimeout(() => document.getElementById("invoice-form")?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
   }

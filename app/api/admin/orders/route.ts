@@ -16,7 +16,7 @@ export async function GET(request: Request) {
   const { page, pageSize, from, to } = paginationFromUrl(request.url);
   const query = supabase
     .from("school_orders")
-    .select("id,school_id,submitted_by,contact_name,contact_email,notes,order_type,status,payment_status,admin_notes,total_zar,total_usd,created_at,schools(name,contact_email),school_order_items(*)", { count: "exact" })
+    .select("id,school_id,submitted_by,contact_name,contact_email,notes,order_type,status,payment_status,admin_notes,discount_zar,discount_note,total_zar,total_usd,created_at,schools(name,contact_email),school_order_items(*)", { count: "exact" })
     .order("created_at", { ascending: false });
 
   if (status) query.eq("status", status);
@@ -31,5 +31,24 @@ export async function GET(request: Request) {
     return Response.json({ error: error.message }, { status: 400 });
   }
 
-  return Response.json({ orders: data, pagination: paginationPayload(page, pageSize, count) });
+  const orderIds = (data ?? []).map((order) => order.id);
+  const { data: invoices, error: invoicesError } = orderIds.length > 0
+    ? await supabase.from("school_invoices").select("id,invoice_number,source_order_id").in("source_order_id", orderIds)
+    : { data: [], error: null };
+
+  if (invoicesError) {
+    return Response.json({ error: invoicesError.message }, { status: 400 });
+  }
+
+  const invoicesByOrderId = new Map((invoices ?? []).map((invoice) => [invoice.source_order_id, invoice]));
+  const orders = (data ?? []).map((order) => {
+    const invoice = invoicesByOrderId.get(order.id);
+    return {
+      ...order,
+      invoice_id: invoice?.id ?? null,
+      invoice_number: invoice?.invoice_number ?? null,
+    };
+  });
+
+  return Response.json({ orders, pagination: paginationPayload(page, pageSize, count) });
 }
