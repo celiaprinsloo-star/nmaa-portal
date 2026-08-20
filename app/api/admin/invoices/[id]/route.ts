@@ -68,6 +68,98 @@ export async function PATCH(request: Request, context: InvoiceRouteContext) {
   return Response.json({ invoice: data });
 }
 
+export async function POST(request: Request, context: InvoiceRouteContext) {
+  const { user, response } = await requireApprovedUser(request);
+
+  if (!user) return response;
+
+  if (user.profile.role !== "super_admin") {
+    return Response.json({ error: "Super admin access required for invoices." }, { status: 403 });
+  }
+
+  const { id } = await context.params;
+  const supabase = createSupabaseAdminClient();
+  const { data: invoice, error: invoiceError } = await supabase
+    .from("school_invoices")
+    .select("id,source_order_id")
+    .eq("id", id)
+    .single();
+
+  if (invoiceError || !invoice) {
+    return Response.json({ error: invoiceError?.message ?? "Invoice not found." }, { status: 404 });
+  }
+
+  if (!invoice.source_order_id) {
+    return Response.json({ error: "This invoice is not linked to an order." }, { status: 400 });
+  }
+
+  const { data: order, error: orderError } = await supabase
+    .from("school_orders")
+    .select("id,school_id,payment_status,admin_notes,discount_zar,discount_note,school_order_items(id,currency,line_total)")
+    .eq("id", invoice.source_order_id)
+    .single();
+
+  if (orderError || !order) {
+    return Response.json({ error: orderError?.message ?? "Linked order not found." }, { status: 404 });
+  }
+
+  const items = order.school_order_items ?? [];
+  const calculatedTotalZar = items
+    .filter((item) => item.currency === "ZAR")
+    .reduce((sum, item) => sum + Number(item.line_total), 0);
+  const calculatedTotalUsd = items
+    .filter((item) => item.currency === "USD")
+    .reduce((sum, item) => sum + Number(item.line_total), 0);
+  const discountZar = Math.max(0, Number(order.discount_zar ?? 0) || 0);
+  const finalTotalZar = Math.max(0, calculatedTotalZar - discountZar);
+  const descriptionLines = [
+    `Invoice synced from linked order ${order.id.slice(0, 8)}.`,
+    discountZar > 0 ? `Discount applied: R${discountZar.toFixed(2)}${order.discount_note ? ` (${order.discount_note})` : ""}.` : "",
+    calculatedTotalUsd > 0 ? `This order also includes USD items totaling $${calculatedTotalUsd.toFixed(2)}.` : "",
+  ].filter(Boolean);
+
+  const { error: orderUpdateError } = await supabase
+    .from("school_orders")
+    .update({
+      total_zar: finalTotalZar,
+      total_usd: calculatedTotalUsd,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", order.id);
+
+  if (orderUpdateError) {
+    return Response.json({ error: orderUpdateError.message }, { status: 400 });
+  }
+
+  const { data, error } = await supabase
+    .from("school_invoices")
+    .update({
+      amount_zar: finalTotalZar,
+      status: order.payment_status,
+      description: descriptionLines.join(" "),
+      admin_notes: order.admin_notes,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", id)
+    .select(invoiceSelect)
+    .single();
+
+  if (error) {
+    return Response.json({ error: error.message }, { status: 400 });
+  }
+
+  await logAuditEvent({
+    actorId: user.id,
+    action: "school_invoice.synced_from_order",
+    entityTable: "school_invoices",
+    entityId: id,
+    summary: `Synced invoice ${data.invoice_number} from linked order`,
+    metadata: { school_id: data.school_id, source_order_id: data.source_order_id, amount_zar: data.amount_zar },
+  });
+
+  return Response.json({ invoice: data });
+}
+
 export async function DELETE(request: Request, context: InvoiceRouteContext) {
   const { user, response } = await requireApprovedUser(request);
 

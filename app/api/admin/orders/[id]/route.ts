@@ -13,6 +13,7 @@ type OrderItemUpdate = {
   id?: string;
   quantity?: number;
   instructor_price?: number;
+  currency?: string;
 };
 
 function invoiceNumber(orderId: string) {
@@ -54,13 +55,9 @@ export async function PATCH(request: Request, context: OrderRouteContext) {
 
   const { data: existingInvoice } = await supabase
     .from("school_invoices")
-    .select("id")
+    .select("id,invoice_number")
     .eq("source_order_id", id)
     .maybeSingle();
-
-  if (existingInvoice && (itemUpdates.length > 0 || discountZar !== Number(existingOrder.discount_zar ?? 0) || discountNote !== (existingOrder.discount_note ?? null))) {
-    return Response.json({ error: "This order already has an invoice, so prices and discounts can no longer be changed." }, { status: 400 });
-  }
 
   const orderItems = existingOrder.school_order_items ?? [];
   const updatesById = new Map(itemUpdates.map((item) => [String(item.id ?? ""), item]));
@@ -68,21 +65,24 @@ export async function PATCH(request: Request, context: OrderRouteContext) {
     const update = updatesById.get(item.id);
     const quantity = update ? Math.max(0, Number(update.quantity) || 0) : Number(item.quantity);
     const instructorPrice = update ? Math.max(0, Number(update.instructor_price) || 0) : Number(item.instructor_price ?? 0);
+    const currency = update?.currency === "USD" ? "USD" : update?.currency === "ZAR" ? "ZAR" : item.currency;
     return {
       ...item,
       quantity,
+      currency,
       instructor_price: instructorPrice,
       line_total: quantity * instructorPrice,
     };
   });
 
-  if (!existingInvoice && itemUpdates.length > 0) {
+  if (itemUpdates.length > 0) {
     const itemErrors = await Promise.all(
       updatedItems.map((item) =>
         supabase
           .from("school_order_items")
           .update({
             quantity: item.quantity,
+            currency: item.currency,
             instructor_price: item.instructor_price,
             line_total: item.line_total,
           })
@@ -144,6 +144,29 @@ export async function PATCH(request: Request, context: OrderRouteContext) {
 
     if (invoiceError) {
       return Response.json({ error: invoiceError.message }, { status: 400 });
+    }
+  }
+
+  if (existingInvoice) {
+    const descriptionLines = [
+      `Invoice linked to order ${id.slice(0, 8)}.`,
+      discountZar > 0 ? `Discount applied: R${discountZar.toFixed(2)}${discountNote ? ` (${discountNote})` : ""}.` : "",
+      calculatedTotalUsd > 0 ? `This order also includes USD items totaling $${calculatedTotalUsd.toFixed(2)}.` : "",
+    ].filter(Boolean);
+
+    const { error: invoiceUpdateError } = await supabase
+      .from("school_invoices")
+      .update({
+        amount_zar: data.total_zar,
+        status: data.payment_status,
+        description: descriptionLines.join(" "),
+        admin_notes: data.admin_notes,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", existingInvoice.id);
+
+    if (invoiceUpdateError) {
+      return Response.json({ error: invoiceUpdateError.message }, { status: 400 });
     }
   }
 

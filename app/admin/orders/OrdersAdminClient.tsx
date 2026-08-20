@@ -85,7 +85,7 @@ export default function OrdersAdminClient() {
   const [noteDrafts, setNoteDrafts] = useState<Record<string, string>>({});
   const [discountDrafts, setDiscountDrafts] = useState<Record<string, string>>({});
   const [discountNoteDrafts, setDiscountNoteDrafts] = useState<Record<string, string>>({});
-  const [itemDrafts, setItemDrafts] = useState<Record<string, Record<string, { quantity: string; instructor_price: string }>>>({});
+  const [itemDrafts, setItemDrafts] = useState<Record<string, Record<string, { quantity: string; instructor_price: string; currency: string }>>>({});
   const [filters, setFilters] = useState(emptyOrderFilters);
   const [pagination, setPagination] = useState({ page: 1, page_size: 25, total: 0, has_more: false });
   const [error, setError] = useState("");
@@ -147,6 +147,7 @@ export default function OrdersAdminClient() {
               {
                 quantity: String(item.quantity),
                 instructor_price: String(item.instructor_price ?? 0),
+                currency: item.currency,
               },
             ]),
           ),
@@ -179,8 +180,6 @@ export default function OrdersAdminClient() {
   async function updateOrder(orderId: string) {
     setBusy(true);
     setError("");
-    const order = orders.find((item) => item.id === orderId);
-    const canAdjustPrices = !order?.invoice_id;
 
     const response = await fetch(`/api/admin/orders/${orderId}`, {
       method: "PATCH",
@@ -194,13 +193,12 @@ export default function OrdersAdminClient() {
         admin_notes: noteDrafts[orderId],
         discount_zar: discountDrafts[orderId],
         discount_note: discountNoteDrafts[orderId],
-        items: canAdjustPrices
-          ? Object.entries(itemDrafts[orderId] ?? {}).map(([id, item]) => ({
-              id,
-              quantity: item.quantity,
-              instructor_price: item.instructor_price,
-            }))
-          : [],
+        items: Object.entries(itemDrafts[orderId] ?? {}).map(([id, item]) => ({
+          id,
+          quantity: item.quantity,
+          instructor_price: item.instructor_price,
+          currency: item.currency,
+        })),
       }),
     });
     const payload = await response.json();
@@ -222,7 +220,7 @@ export default function OrdersAdminClient() {
     setFilters((current) => ({ ...current, [field]: value }));
   }
 
-  function updateItemDraft(orderId: string, itemId: string, field: "quantity" | "instructor_price", value: string) {
+  function updateItemDraft(orderId: string, itemId: string, field: "quantity" | "instructor_price" | "currency", value: string) {
     setItemDrafts((current) => ({
       ...current,
       [orderId]: {
@@ -230,6 +228,7 @@ export default function OrdersAdminClient() {
         [itemId]: {
           quantity: current[orderId]?.[itemId]?.quantity ?? "0",
           instructor_price: current[orderId]?.[itemId]?.instructor_price ?? "0",
+          currency: current[orderId]?.[itemId]?.currency ?? "ZAR",
           [field]: value,
         },
       },
@@ -242,8 +241,9 @@ export default function OrdersAdminClient() {
         const draft = itemDrafts[order.id]?.[item.id];
         const quantity = Number(draft?.quantity ?? item.quantity) || 0;
         const price = Number(draft?.instructor_price ?? item.instructor_price ?? 0) || 0;
+        const currency = draft?.currency ?? item.currency;
         const lineTotal = quantity * price;
-        if (item.currency === "USD") totals.usd += lineTotal;
+        if (currency === "USD") totals.usd += lineTotal;
         else totals.zar += lineTotal;
         return totals;
       },
@@ -430,8 +430,8 @@ export default function OrdersAdminClient() {
                 <summary style={{ cursor: "pointer", fontWeight: 800 }}>Adjust order before invoicing</summary>
                 <p className="small-note">
                   {order.invoice_id
-                    ? `Locked because invoice ${order.invoice_number} has been created.`
-                    : "Price changes and discounts are locked after the processing invoice is created."}
+                    ? `Invoice ${order.invoice_number} already exists. Saving changes here will update that invoice total.`
+                    : "Confirm quantities, currency, prices, and discounts before moving this order to processing."}
                 </p>
                 <div className="responsive-table">
                   <table>
@@ -439,6 +439,7 @@ export default function OrdersAdminClient() {
                       <tr>
                         <th>Item</th>
                         <th>Qty</th>
+                        <th>Currency</th>
                         <th>Actual price</th>
                         <th>Draft line total</th>
                       </tr>
@@ -448,13 +449,15 @@ export default function OrdersAdminClient() {
                         const draft = itemDrafts[order.id]?.[item.id];
                         const quantity = draft?.quantity ?? String(item.quantity);
                         const price = draft?.instructor_price ?? String(item.instructor_price ?? 0);
+                        const currency = draft?.currency ?? item.currency;
                         const lineTotal = (Number(quantity) || 0) * (Number(price) || 0);
                         return (
                           <tr key={item.id}>
                             <td>{item.item}{item.size ? ` | ${item.size}` : ""}</td>
-                            <td><input disabled={Boolean(order.invoice_id)} min="0" style={{ minWidth: 90 }} type="number" value={quantity} onChange={(event) => updateItemDraft(order.id, item.id, "quantity", event.target.value)} /></td>
-                            <td><input disabled={Boolean(order.invoice_id)} min="0" step="0.01" style={{ minWidth: 120 }} type="number" value={price} onChange={(event) => updateItemDraft(order.id, item.id, "instructor_price", event.target.value)} /></td>
-                            <td>{item.currency === "USD" ? `$${lineTotal.toFixed(2)}` : money(lineTotal, "ZAR")}</td>
+                            <td><input min="0" style={{ minWidth: 90 }} type="number" value={quantity} onChange={(event) => updateItemDraft(order.id, item.id, "quantity", event.target.value)} /></td>
+                            <td><select value={currency} onChange={(event) => updateItemDraft(order.id, item.id, "currency", event.target.value)}><option value="ZAR">ZAR</option><option value="USD">USD</option></select></td>
+                            <td><input min="0" step="0.01" style={{ minWidth: 120 }} type="number" value={price} onChange={(event) => updateItemDraft(order.id, item.id, "instructor_price", event.target.value)} /></td>
+                            <td>{currency === "USD" ? `$${lineTotal.toFixed(2)}` : money(lineTotal, "ZAR")}</td>
                           </tr>
                         );
                       })}
@@ -462,8 +465,8 @@ export default function OrdersAdminClient() {
                   </table>
                 </div>
                 <div className="admin-form" style={{ marginTop: 12 }}>
-                  <label>ZAR discount<input disabled={Boolean(order.invoice_id)} min="0" step="0.01" type="number" value={discountDrafts[order.id] ?? "0"} onChange={(event) => setDiscountDrafts((current) => ({ ...current, [order.id]: event.target.value }))} /></label>
-                  <label>Discount note<input disabled={Boolean(order.invoice_id)} value={discountNoteDrafts[order.id] ?? ""} onChange={(event) => setDiscountNoteDrafts((current) => ({ ...current, [order.id]: event.target.value }))} placeholder="Reason for discount" /></label>
+                  <label>ZAR discount<input min="0" step="0.01" type="number" value={discountDrafts[order.id] ?? "0"} onChange={(event) => setDiscountDrafts((current) => ({ ...current, [order.id]: event.target.value }))} /></label>
+                  <label>Discount note<input value={discountNoteDrafts[order.id] ?? ""} onChange={(event) => setDiscountNoteDrafts((current) => ({ ...current, [order.id]: event.target.value }))} placeholder="Reason for discount" /></label>
                 </div>
               </details>
 

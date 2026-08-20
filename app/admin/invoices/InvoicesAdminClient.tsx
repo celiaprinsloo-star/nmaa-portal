@@ -186,6 +186,27 @@ export default function InvoicesAdminClient() {
     await loadInvoices(token);
   }
 
+  async function syncInvoice(id: string) {
+    setBusy(true);
+    setError("");
+    setMessage("");
+
+    const response = await fetch(`/api/admin/invoices/${id}`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const payload = await response.json().catch(() => ({}));
+    setBusy(false);
+
+    if (!response.ok) {
+      setError(payload.error ?? "Unable to sync invoice from order.");
+      return;
+    }
+
+    setMessage("Invoice synced from linked order.");
+    await loadInvoices(token);
+  }
+
   return (
     <main className="app-page">
       <header className="page-header">
@@ -259,11 +280,13 @@ export default function InvoicesAdminClient() {
                   <div><dt>Amount</dt><dd>{money(invoice.amount_zar)}</dd></div>
                   <div><dt>Due date</dt><dd>{dateLabel(invoice.due_date)}</dd></div>
                   <div><dt>Status</dt><dd><span className={`status-pill status-${invoice.status}`}>{invoice.status}</span></dd></div>
+                  <div><dt>Source</dt><dd>{invoice.source_order_id ? `Order ${invoice.source_order_id.slice(0, 8)}` : "Manual invoice"}</dd></div>
                 </dl>
                 {invoice.description ? <p className="muted">{invoice.description}</p> : null}
                 {invoice.admin_notes ? <p className="small-note">Admin notes: {invoice.admin_notes}</p> : null}
               </div>
               <div className="row-actions">
+                {invoice.source_order_id ? <button className="secondary-button compact" disabled={busy} onClick={() => syncInvoice(invoice.id)} type="button">Sync from order</button> : null}
                 <button className="secondary-button compact" onClick={() => editInvoice(invoice)} type="button">Edit</button>
                 <button className="danger-button compact" disabled={busy} onClick={() => deleteInvoice(invoice.id)} type="button">Delete</button>
               </div>
