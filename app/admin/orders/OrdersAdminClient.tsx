@@ -302,6 +302,12 @@ export default function OrdersAdminClient() {
     await loadOrders(token);
   }
 
+  const groupedCatalog = catalog.reduce<Record<string, OrderCatalogItem[]>>((groups, item) => {
+    const section = item.section || "Other";
+    groups[section] = [...(groups[section] ?? []), item];
+    return groups;
+  }, {});
+
   return (
     <main className="app-page">
       <header className="page-header">
@@ -344,38 +350,50 @@ export default function OrdersAdminClient() {
           </div>
         </form>
 
-        <section className="catalog-admin-list catalog-card-grid" style={catalogGridStyle}>
-          {catalog.map((item) => (
-            <article
-              className={`catalog-admin-card ${!item.in_stock ? "out-of-stock" : ""}`}
-              key={item.id}
-              style={{ ...catalogCardStyle, opacity: item.in_stock ? 1 : 0.7 }}
-            >
-              <div className="catalog-item-main">
-                <h2 style={{ margin: 0, fontSize: "18px" }}>{item.item}</h2>
-                <p style={catalogChipRowStyle}>
-                  <span style={catalogChipStyle}>{item.section}</span>
-                  {item.size ? <span style={catalogChipStyle}>{item.size}</span> : null}
-                  {item.special_order ? <span style={catalogChipStyle}>Special order</span> : null}
-                </p>
-                {item.note ? <p>{item.note}</p> : null}
+        <section className="catalog-admin-list">
+          {Object.entries(groupedCatalog).map(([section, items], index) => (
+            <details className="catalog-stock-group" key={section} open={index === 0}>
+              <summary>
+                <span>
+                  <strong>{section}</strong>
+                  <small>{items.length} items | {items.filter((item) => item.in_stock).length} in stock</small>
+                </span>
+              </summary>
+              <div className="catalog-card-grid" style={catalogGridStyle}>
+                {items.map((item) => (
+                  <article
+                    className={`catalog-admin-card ${!item.in_stock ? "out-of-stock" : ""}`}
+                    key={item.id}
+                    style={{ ...catalogCardStyle, opacity: item.in_stock ? 1 : 0.7 }}
+                  >
+                    <div className="catalog-item-main">
+                      <h2 style={{ margin: 0, fontSize: "18px" }}>{item.item}</h2>
+                      <p style={catalogChipRowStyle}>
+                        <span style={catalogChipStyle}>{item.section}</span>
+                        {item.size ? <span style={catalogChipStyle}>{item.size}</span> : null}
+                        {item.special_order ? <span style={catalogChipStyle}>Special order</span> : null}
+                      </p>
+                      {item.note ? <p>{item.note}</p> : null}
+                    </div>
+                    <div className="catalog-price-card" style={catalogPriceStyle}>
+                      <strong>{money(item.instructor_price ?? undefined, item.currency)}</strong>
+                      <span>Actual item price</span>
+                    </div>
+                    <div className="catalog-price-card" style={catalogPriceStyle}>
+                      <strong>{item.student_price ? money(item.student_price, item.currency) : "-"}</strong>
+                      <span>Recommended selling</span>
+                    </div>
+                    <div className="catalog-stock-cell">
+                      <span className={`status-pill status-${item.in_stock ? "active" : "suspended"}`}>{item.in_stock ? "in stock" : "out of stock"}</span>
+                      {!item.active ? <span className="status-pill status-expired">inactive</span> : null}
+                    </div>
+                    <div className="row-actions">
+                      <button className="secondary-button compact" onClick={() => editCatalogItem(item)} type="button">Edit</button>
+                    </div>
+                  </article>
+                ))}
               </div>
-              <div className="catalog-price-card" style={catalogPriceStyle}>
-                <strong>{money(item.instructor_price ?? undefined, item.currency)}</strong>
-                <span>Actual item price</span>
-              </div>
-              <div className="catalog-price-card" style={catalogPriceStyle}>
-                <strong>{item.student_price ? money(item.student_price, item.currency) : "-"}</strong>
-                <span>Recommended selling</span>
-              </div>
-              <div className="catalog-stock-cell">
-                <span className={`status-pill status-${item.in_stock ? "active" : "suspended"}`}>{item.in_stock ? "in stock" : "out of stock"}</span>
-                {!item.active ? <span className="status-pill status-expired">inactive</span> : null}
-              </div>
-              <div className="row-actions">
-                <button className="secondary-button compact" onClick={() => editCatalogItem(item)} type="button">Edit</button>
-              </div>
-            </article>
+            </details>
           ))}
         </section>
       </section>
@@ -403,9 +421,9 @@ export default function OrdersAdminClient() {
           orders.map((order) => (
             <article className="order-admin-card" key={order.id}>
               <div className="order-admin-header">
-                <div>
+                <div className="order-admin-main">
                   <h2>{order.schools?.name ?? "School"} - Order {order.id.slice(0, 8)}</h2>
-                  <dl className="detail-grid">
+                  <dl className="detail-grid order-detail-grid">
                     <div><dt>Date</dt><dd>{new Date(order.created_at).toLocaleString()}</dd></div>
                     <div><dt>Type</dt><dd>{order.order_type === "consignment" ? "Consignment for sizing" : "Purchase"}</dd></div>
                     <div><dt>Payment</dt><dd><span className={`status-pill status-${order.payment_status}`}>{order.payment_status}</span></dd></div>
@@ -414,7 +432,9 @@ export default function OrdersAdminClient() {
                     <div><dt>Email</dt><dd>{order.contact_email ?? order.schools?.contact_email ?? "No email"}</dd></div>
                   </dl>
                 </div>
-                <span className={`status-pill status-${order.status}`}>{order.status}</span>
+                <div className="order-admin-status">
+                  <span className={`status-pill status-${order.status}`}>{order.status}</span>
+                </div>
               </div>
 
               <div className="order-admin-lines">
