@@ -65,7 +65,6 @@ export default function TournamentsClient() {
   const [editingTournamentId, setEditingTournamentId] = useState("");
   const [editingEntryId, setEditingEntryId] = useState("");
   const [error, setError] = useState("");
-  const [syncMessage, setSyncMessage] = useState("");
   const [busy, setBusy] = useState(false);
 
   async function loadTournaments(activeToken: string) {
@@ -388,89 +387,6 @@ function editEntry(entry: TournamentEntry) {
     await loadTournaments(token);
   }
 
-  async function syncLegacyPortal() {
-    setBusy(true);
-    setError("");
-    setSyncMessage("");
-
-    const response = await fetch("/api/admin/legacy-portal-sync", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    const payload = await response.json();
-    setBusy(false);
-
-    if (!response.ok) {
-      setError(payload.error ?? "Unable to sync Legacy portal.");
-      return;
-    }
-
-    const imported = payload.result?.imported;
-    setSyncMessage(
-      `Legacy portal synced: ${imported?.competitions ?? 0} tournaments and ${
-        imported?.events ?? 0
-      } events.`
-    );
-  }
-
-  async function importLegacyEntries() {
-    setBusy(true);
-    setError("");
-    setSyncMessage("");
-
-    const response = await fetch("/api/admin/legacy-portal-sync/entries", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    const payload = await response.json();
-    setBusy(false);
-
-    if (!response.ok) {
-      setError(payload.error ?? "Unable to import Legacy entries.");
-      return;
-    }
-
-    const imported = payload.result?.imported;
-    const skipped = payload.result?.skipped;
-    setSyncMessage(
-      `Legacy entries imported: ${imported?.entries ?? 0} entries and ${
-        imported?.students ?? 0
-      } student records. Skipped ${skipped?.entries ?? 0} entries and ${
-        skipped?.competitions ?? 0
-      } tournaments.`
-    );
-    await loadTournaments(token);
-  }
-
-  async function importLegacyTournaments() {
-    setBusy(true);
-    setError("");
-    setSyncMessage("");
-
-    const response = await fetch("/api/admin/legacy-portal-sync/calendar", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    const payload = await response.json();
-    setBusy(false);
-
-    if (!response.ok) {
-      setError(payload.error ?? "Unable to import Legacy tournaments.");
-      return;
-    }
-
-    const imported = payload.result?.imported;
-    const skipped = payload.result?.skipped;
-    setSyncMessage(
-      `Legacy calendar imported: ${imported?.tournaments ?? 0} tournaments and ${
-        imported?.events ?? 0
-      } events. Skipped ${skipped?.tournaments ?? 0} tournaments and ${
-        skipped?.events ?? 0
-      } events.`
-    );
-    await loadTournaments(token);
-  }
-
   return (
     <main className="app-page">
       <header className="page-header">
@@ -481,22 +397,12 @@ function editEntry(entry: TournamentEntry) {
           <p className="muted">Create tournaments, enter students, and record results.</p>
         </div>
         <div className="row-actions">
-          <button className="secondary-button compact" disabled={busy || !token} onClick={syncLegacyPortal} type="button">
-            Sync Legacy Portal
-          </button>
-          <button className="secondary-button compact" disabled={busy || !token} onClick={importLegacyTournaments} type="button">
-            Import Legacy Tournaments
-          </button>
-          <button className="secondary-button compact" disabled={busy || !token} onClick={importLegacyEntries} type="button">
-            Import Legacy Entries
-          </button>
           <Link className="secondary-button compact" href="/dashboard">Dashboard</Link>
           <SignOutButton />
         </div>
       </header>
 
       {error ? <section className="content-shell"><p className="form-error">{error}</p></section> : null}
-      {syncMessage ? <section className="content-shell"><p className="form-success">{syncMessage}</p></section> : null}
 
       <section className="section-title">
         <h2>School leaderboard</h2>
