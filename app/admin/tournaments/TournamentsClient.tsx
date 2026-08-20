@@ -280,10 +280,12 @@ function editEntry(entry: TournamentEntry) {
   const tournamentGroups = tournaments.map((tournament) => {
     const tournamentEntries = entries.filter((entry) => entry.tournament_id === tournament.id);
     const points = tournamentEntries.reduce((total, entry) => total + Number(entry.points ?? 0), 0);
+    const competitors = new Set(tournamentEntries.map((entry) => entry.student_id)).size;
 
     return {
       tournament,
       entries: tournamentEntries,
+      competitors,
       points,
       results: tournamentEntries.filter((entry) => entry.medal || entry.result_label).length,
     };
@@ -549,7 +551,7 @@ function editEntry(entry: TournamentEntry) {
         <p>Quick overview of all tournaments and their imported results.</p>
       </section>
       <section className="tournament-card-grid">
-        {tournamentGroups.map(({ tournament, entries: tournamentEntries, points, results }) => (
+        {tournamentGroups.map(({ tournament, entries: tournamentEntries, competitors, points, results }) => (
           <article className="tournament-card" key={tournament.id}>
             <div className="tournament-card-header">
               <div>
@@ -559,6 +561,7 @@ function editEntry(entry: TournamentEntry) {
               <span className="status-pill">{tournament.provinces?.name ?? "National"}</span>
             </div>
             <dl className="tournament-mini-grid">
+              <div><dt>Competitors</dt><dd>{competitors}</dd></div>
               <div><dt>Entries</dt><dd>{tournamentEntries.length}</dd></div>
               <div><dt>Results</dt><dd>{results}</dd></div>
               <div><dt>Points</dt><dd>{points}</dd></div>
@@ -582,7 +585,7 @@ function editEntry(entry: TournamentEntry) {
         {tournamentGroups.length === 0 ? (
           <article className="empty-state">No tournaments recorded yet.</article>
         ) : (
-          tournamentGroups.map(({ tournament, entries: tournamentEntries, points }, index) => (
+          tournamentGroups.map(({ tournament, entries: tournamentEntries, competitors, points }, index) => (
             <details className="tournament-group" key={tournament.id} open={index === 0}>
               <summary>
                 <span>
@@ -590,6 +593,7 @@ function editEntry(entry: TournamentEntry) {
                   <small>{formatTournamentDate(tournament.starts_at)} | {tournament.venue ?? "No venue"}</small>
                 </span>
                 <span className="tournament-summary-counts">
+                  <b>{competitors}</b> competitors
                   <b>{tournamentEntries.length}</b> entries
                   <b>{points}</b> points
                   <b>{formatFee(schoolFeeTotals(tournament, tournamentEntries).reduce((total, school) => total + school.total, 0))}</b> fees
