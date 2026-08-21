@@ -46,7 +46,6 @@ export default function StudentsClient() {
   const [form, setForm] = useState(emptyStudent);
   const [selectedSchoolName, setSelectedSchoolName] = useState("");
   const [canManageStudents, setCanManageStudents] = useState(false);
-  const [profileRole, setProfileRole] = useState("");
   const [filters, setFilters] = useState({
     search: "",
     school_id: "",
@@ -58,7 +57,6 @@ export default function StudentsClient() {
   });
   const [pagination, setPagination] = useState({ page: 1, page_size: 25, total: 0, has_more: false });
   const [error, setError] = useState("");
-  const [syncMessage, setSyncMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const studentFormRef = useRef<HTMLFormElement | null>(null);
 
@@ -96,7 +94,6 @@ export default function StudentsClient() {
       setFilters((current) => ({ ...current, age_group: requestedAgeGroup }));
     }
     setCanManageStudents(Boolean(payload.can_manage_students));
-    setProfileRole(payload.profile_role ?? "");
     setPagination(payload.pagination ?? { page, page_size: 25, total: payload.students.length, has_more: false });
     setForm((current) => ({
       ...current,
@@ -264,41 +261,6 @@ export default function StudentsClient() {
     await loadStudents(token);
   }
 
-  async function importLegacyMembers() {
-    setBusy(true);
-    setError("");
-    setSyncMessage("");
-
-    const response = await fetch("/api/admin/legacy-portal-sync/members", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    const payload = await response.json();
-    setBusy(false);
-
-    if (!response.ok) {
-      const details = Array.isArray(payload.result?.errors)
-        ? ` ${payload.result.errors.join(" ")}`
-        : "";
-      setError(`${payload.error ?? "Unable to import Legacy members."}${details}`);
-      return;
-    }
-
-    const imported = payload.result?.imported;
-    const skipped = payload.result?.skipped;
-    const reasons = Array.isArray(payload.result?.errors)
-      ? ` ${payload.result.errors.join(" ")}`
-      : "";
-    setSyncMessage(
-      `Legacy members imported: ${imported?.students ?? 0} students and ${
-        imported?.instructors ?? 0
-      } instructors. Skipped ${skipped?.students ?? 0} students and ${
-        skipped?.instructors ?? 0
-      } instructors.${reasons}`
-    );
-    await loadStudents(token);
-  }
-
   return (
     <main className="app-page">
       <header className="page-header">
@@ -309,17 +271,11 @@ export default function StudentsClient() {
           <p className="muted">{canManageStudents ? "Add students, keep ranks current, and maintain membership status." : "View student details from the schools you oversee."}</p>
         </div>
         <div className="row-actions">
-          {["super_admin", "national_admin"].includes(profileRole) ? (
-            <button className="secondary-button compact" disabled={busy || !token} onClick={importLegacyMembers} type="button">
-              Import Legacy Members
-            </button>
-          ) : null}
           <Link className="secondary-button compact" href="/dashboard">Dashboard</Link>
           <SignOutButton />
         </div>
       </header>
       {error ? <section className="content-shell"><p className="form-error">{error}</p></section> : null}
-      {syncMessage ? <section className="content-shell"><p className="form-success">{syncMessage}</p></section> : null}
 
       <section className={canManageStudents ? "admin-workspace" : "content-shell"}>
         {canManageStudents ? (
