@@ -225,6 +225,7 @@ function editEntry(entry: TournamentEntry) {
         "Student",
         "Age",
         "Gender",
+        "Rank",
         "School",
         "Category",
         "Special needs",
@@ -241,6 +242,7 @@ function editEntry(entry: TournamentEntry) {
           `${entry.students?.first_name ?? ""} ${entry.students?.last_name ?? ""}`.trim(),
           studentAge(entry.students?.date_of_birth),
           formatGender(entry.students?.gender),
+          entry.students?.belt_rank ?? "",
           entry.schools?.name ?? "",
           entry.category ?? "",
           entry.special_needs ? "Yes" : "No",
@@ -713,6 +715,7 @@ function editEntry(entry: TournamentEntry) {
                         <th>Student</th>
                         <th>Age</th>
                         <th>Gender</th>
+                        <th>Rank</th>
                         <th>School</th>
                         <th>Category</th>
                         <th>Special needs</th>
@@ -727,6 +730,7 @@ function editEntry(entry: TournamentEntry) {
                           <td>{entry.students?.first_name} {entry.students?.last_name}</td>
                           <td>{studentAge(entry.students?.date_of_birth)}</td>
                           <td>{formatGender(entry.students?.gender)}</td>
+                          <td>{entry.students?.belt_rank ?? "No rank"}</td>
                           <td>{entry.schools?.name ?? "No school"}</td>
                           <td>{entry.category ?? "No category"}</td>
                           <td>{entry.special_needs ? "Yes" : "No"}</td>
