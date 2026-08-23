@@ -116,7 +116,7 @@ export type TournamentEntry = {
   points: number | null;
   special_needs: boolean;
   status: string;
-  students?: Pick<Student, "first_name" | "last_name" | "belt_rank" | "date_of_birth"> | null;
+  students?: Pick<Student, "first_name" | "last_name" | "belt_rank" | "date_of_birth" | "gender"> | null;
   schools?: Pick<School, "name"> | null;
   tournaments?: Pick<Tournament, "name"> | null;
 };

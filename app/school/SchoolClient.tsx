@@ -710,6 +710,11 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
       .slice(0, 80) || "tournament-entries";
   }
 
+  function formatGender(value: string | null | undefined) {
+    if (!value) return "Not recorded";
+    return value.charAt(0).toUpperCase() + value.slice(1);
+  }
+
   function tournamentCategoryList(tournamentId: string) {
     const tournament = tournaments.find((item) => item.id === tournamentId);
     return tournament?.tournament_categories?.length ? tournament.tournament_categories : [...tournamentCategories];
@@ -751,7 +756,7 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
 
   function exportEntriesCsv(tournament: Tournament | null, tournamentEntries: TournamentEntry[]) {
     const rows = [
-      ["Tournament", "Date", "Venue", "Student", "Rank", "Category", "Special needs", "Status", "Result", "Points"],
+      ["Tournament", "Date", "Venue", "Student", "Gender", "Rank", "Category", "Special needs", "Status", "Result", "Points"],
       ...tournamentEntries.map((entry) => {
         const entryTournament = tournament ?? tournaments.find((item) => item.id === entry.tournament_id) ?? null;
         return [
@@ -759,6 +764,7 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
           entryTournament?.starts_at ? formatTournamentDate(entryTournament.starts_at) : "",
           entryTournament?.venue ?? "",
           `${entry.students?.first_name ?? ""} ${entry.students?.last_name ?? ""}`.trim(),
+          formatGender(entry.students?.gender),
           entry.students?.belt_rank ?? "",
           entry.category ?? "",
           entry.special_needs ? "Yes" : "No",
@@ -768,7 +774,7 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
         ];
       }),
       [],
-      ["Total fees", "", "", "", "", "", "", "", "", tournament ? formatFee(totalFeeForEntries(tournament, tournamentEntries)) : ""],
+      ["Total fees", "", "", "", "", "", "", "", "", "", tournament ? formatFee(totalFeeForEntries(tournament, tournamentEntries)) : ""],
     ];
     const csv = rows.map((row) => row.map(csvCell).join(",")).join("\r\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
@@ -1069,6 +1075,7 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
                     <thead>
                       <tr>
                         <th>Student</th>
+                        <th>Gender</th>
                         <th>Rank</th>
                         <th>Category</th>
                         <th>Result</th>
@@ -1080,6 +1087,7 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
                       {tournamentEntries.map((entry) => (
                         <tr key={entry.id}>
                           <td>{entry.students?.first_name} {entry.students?.last_name}</td>
+                          <td>{formatGender(entry.students?.gender)}</td>
                           <td>{entry.students?.belt_rank ?? "No rank"}</td>
                           <td>{entry.category ?? "No category"}</td>
                           <td>{entry.result_label || entry.medal || "Entered"}</td>
@@ -1209,6 +1217,7 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
                     <thead>
                       <tr>
                         <th>Student</th>
+                        <th>Gender</th>
                         <th>Rank</th>
                         <th>Category</th>
                         <th>Special needs</th>
@@ -1221,6 +1230,7 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
                       {tournamentEntries.map((entry) => (
                         <tr key={entry.id}>
                           <td>{entry.students?.first_name} {entry.students?.last_name}</td>
+                          <td>{formatGender(entry.students?.gender)}</td>
                           <td>{entry.students?.belt_rank ?? "No rank"}</td>
                           <td>{entry.category ?? "No category"}</td>
                           <td>{entry.special_needs ? "Yes" : "No"}</td>

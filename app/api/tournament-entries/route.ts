@@ -32,7 +32,7 @@ export async function GET(request: Request) {
 
   const entriesQuery = supabase
     .from("tournament_entries")
-    .select("id,tournament_id,student_id,school_id,category,result_label,medal,points,special_needs,status,students(first_name,last_name,belt_rank),schools(name),tournaments(name)")
+    .select("id,tournament_id,student_id,school_id,category,result_label,medal,points,special_needs,status,students(first_name,last_name,belt_rank,gender),schools(name),tournaments(name)")
     .order("created_at", { ascending: false });
   const studentsQuery = supabase
     .from("students")
@@ -109,7 +109,7 @@ export async function POST(request: Request) {
   const { data, error } = await supabase
     .from("tournament_entries")
     .insert(entry)
-    .select("id,tournament_id,student_id,school_id,category,result_label,medal,points,special_needs,status,students(first_name,last_name,belt_rank),schools(name),tournaments(name)")
+    .select("id,tournament_id,student_id,school_id,category,result_label,medal,points,special_needs,status,students(first_name,last_name,belt_rank,gender),schools(name),tournaments(name)")
     .single();
 
   if (error) return Response.json({ error: error.message }, { status: 400 });
