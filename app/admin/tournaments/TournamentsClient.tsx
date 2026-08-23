@@ -15,6 +15,7 @@ const emptyTournament = {
   starts_at: "",
   ends_at: "",
   registration_closes_at: "",
+  age_calculation_basis: "competition_date",
 };
 
 const emptyFeeStructure = {
@@ -167,6 +168,7 @@ export default function TournamentsClient() {
       starts_at: tournament.starts_at.slice(0, 16),
       ends_at: tournament.ends_at?.slice(0, 16) ?? "",
       registration_closes_at: tournament.registration_closes_at?.slice(0, 16) ?? "",
+      age_calculation_basis: tournament.age_calculation_basis ?? "competition_date",
     });
     setFeeForm({
       base_fee: tournament.fee_structure?.base_fee !== undefined ? String(tournament.fee_structure.base_fee) : "",
@@ -201,6 +203,10 @@ function editEntry(entry: TournamentEntry) {
 
   function formatFee(value: number) {
     return `R${value.toFixed(2)}`;
+  }
+
+  function ageBasisLabel(value: string | null | undefined) {
+    return value === "year_end" ? "Age on 31 Dec of tournament year" : "Age on competition date";
   }
 
   function csvCell(value: string | number | boolean | null | undefined) {
@@ -240,7 +246,7 @@ function editEntry(entry: TournamentEntry) {
           entryTournament?.starts_at ? formatTournamentDate(entryTournament.starts_at) : "",
           entryTournament?.venue ?? "",
           `${entry.students?.first_name ?? ""} ${entry.students?.last_name ?? ""}`.trim(),
-          studentAge(entry.students?.date_of_birth),
+          studentAgeForTournament(entry.students?.date_of_birth, entryTournament),
           formatGender(entry.students?.gender),
           entry.students?.belt_rank ?? "",
           entry.schools?.name ?? "",
@@ -264,17 +270,28 @@ function editEntry(entry: TournamentEntry) {
     URL.revokeObjectURL(url);
   }
 
-  function studentAge(dateOfBirth: string | null | undefined) {
+  function tournamentAgeReferenceDate(tournament: Tournament | null) {
+    const startDate = tournament?.starts_at ? new Date(tournament.starts_at) : new Date();
+    const fallbackDate = Number.isNaN(startDate.getTime()) ? new Date() : startDate;
+
+    if (tournament?.age_calculation_basis === "year_end") {
+      return new Date(fallbackDate.getFullYear(), 11, 31);
+    }
+
+    return fallbackDate;
+  }
+
+  function studentAgeForTournament(dateOfBirth: string | null | undefined, tournament: Tournament | null) {
     if (!dateOfBirth) return "Not recorded";
 
     const birthDate = new Date(dateOfBirth);
     if (Number.isNaN(birthDate.getTime())) return "Not recorded";
 
-    const today = new Date();
-    let age = today.getFullYear() - birthDate.getFullYear();
+    const referenceDate = tournamentAgeReferenceDate(tournament);
+    let age = referenceDate.getFullYear() - birthDate.getFullYear();
     const hasBirthdayPassed =
-      today.getMonth() > birthDate.getMonth() ||
-      (today.getMonth() === birthDate.getMonth() && today.getDate() >= birthDate.getDate());
+      referenceDate.getMonth() > birthDate.getMonth() ||
+      (referenceDate.getMonth() === birthDate.getMonth() && referenceDate.getDate() >= birthDate.getDate());
 
     if (!hasBirthdayPassed) age -= 1;
     return String(age);
@@ -533,6 +550,16 @@ function editEntry(entry: TournamentEntry) {
               onChange={(event) => updateTournamentField("registration_closes_at", event.target.value)}
             />
           </label>
+          <label>
+            Age calculation
+            <select
+              value={tournamentForm.age_calculation_basis}
+              onChange={(event) => updateTournamentField("age_calculation_basis", event.target.value)}
+            >
+              <option value="competition_date">Age on competition date</option>
+              <option value="year_end">Age on 31 Dec of tournament year</option>
+            </select>
+          </label>
           <fieldset style={{ border: "1px solid #d9dee7", borderRadius: 8, display: "grid", gap: 12, gridColumn: "1 / -1", padding: 16 }}>
             <legend style={{ fontWeight: 800, padding: "0 6px" }}>Tournament fees</legend>
             <div style={{ display: "grid", gap: 10, gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))" }}>
@@ -632,6 +659,7 @@ function editEntry(entry: TournamentEntry) {
               <div><dt>Results</dt><dd>{results}</dd></div>
               <div><dt>Points</dt><dd>{points}</dd></div>
               <div><dt>Registration closes</dt><dd>{tournament.registration_closes_at ? formatTournamentDate(tournament.registration_closes_at) : "Not set"}</dd></div>
+              <div><dt>Age rule</dt><dd>{ageBasisLabel(tournament.age_calculation_basis)}</dd></div>
               <div><dt>Categories</dt><dd>{tournament.tournament_categories?.length ?? tournamentCategories.length}</dd></div>
             </dl>
             <p className="small-note">{feeSummary(tournament)}</p>
@@ -728,7 +756,7 @@ function editEntry(entry: TournamentEntry) {
                       {tournamentEntries.map((entry) => (
                         <tr key={entry.id}>
                           <td>{entry.students?.first_name} {entry.students?.last_name}</td>
-                          <td>{studentAge(entry.students?.date_of_birth)}</td>
+                          <td>{studentAgeForTournament(entry.students?.date_of_birth, tournament)}</td>
                           <td>{formatGender(entry.students?.gender)}</td>
                           <td>{entry.students?.belt_rank ?? "No rank"}</td>
                           <td>{entry.schools?.name ?? "No school"}</td>

@@ -141,6 +141,8 @@ create table if not exists public.tournaments (
   starts_at timestamptz not null,
   ends_at timestamptz,
   registration_closes_at timestamptz,
+  age_calculation_basis text not null default 'competition_date'
+    check (age_calculation_basis in ('competition_date', 'year_end')),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );

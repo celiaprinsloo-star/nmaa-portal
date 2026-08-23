@@ -32,7 +32,7 @@ export async function GET(request: Request) {
 
   const entriesQuery = supabase
     .from("tournament_entries")
-    .select("id,tournament_id,student_id,school_id,category,result_label,medal,points,special_needs,status,students(first_name,last_name,belt_rank,gender),schools(name),tournaments(name)")
+    .select("id,tournament_id,student_id,school_id,category,result_label,medal,points,special_needs,status,students(first_name,last_name,belt_rank,date_of_birth,gender),schools(name),tournaments(name)")
     .order("created_at", { ascending: false });
   const studentsQuery = supabase
     .from("students")
@@ -40,7 +40,7 @@ export async function GET(request: Request) {
     .order("last_name");
   const tournamentsQuery = supabase
     .from("tournaments")
-    .select("id,province_id,name,venue,starts_at,ends_at,registration_closes_at,fee_structure,tournament_categories,provinces(name,code)")
+    .select("id,province_id,name,venue,starts_at,ends_at,registration_closes_at,age_calculation_basis,fee_structure,tournament_categories,provinces(name,code)")
     .order("starts_at", { ascending: false });
 
   if (schoolIds.length > 0) {
@@ -109,7 +109,7 @@ export async function POST(request: Request) {
   const { data, error } = await supabase
     .from("tournament_entries")
     .insert(entry)
-    .select("id,tournament_id,student_id,school_id,category,result_label,medal,points,special_needs,status,students(first_name,last_name,belt_rank,gender),schools(name),tournaments(name)")
+    .select("id,tournament_id,student_id,school_id,category,result_label,medal,points,special_needs,status,students(first_name,last_name,belt_rank,date_of_birth,gender),schools(name),tournaments(name)")
     .single();
 
   if (error) return Response.json({ error: error.message }, { status: 400 });

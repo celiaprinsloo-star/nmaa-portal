@@ -20,6 +20,7 @@ function cleanTournamentBody(body: Record<string, unknown> | null) {
   const categories = Array.from(
     new Set(rawCategories.map((category) => String(category).trim()).filter(Boolean)),
   );
+  const ageCalculationBasis = String(body?.age_calculation_basis ?? "competition_date").trim();
 
   return {
     province_id: String(body?.province_id ?? "").trim() || null,
@@ -28,6 +29,7 @@ function cleanTournamentBody(body: Record<string, unknown> | null) {
     starts_at: String(body?.starts_at ?? "").trim(),
     ends_at: String(body?.ends_at ?? "").trim() || null,
     registration_closes_at: String(body?.registration_closes_at ?? "").trim() || null,
+    age_calculation_basis: ageCalculationBasis === "year_end" ? "year_end" : "competition_date",
     fee_structure: feeStructure,
     tournament_categories: categories.length > 0 ? categories : [...tournamentCategories],
   };
@@ -53,7 +55,7 @@ export async function PATCH(request: Request, context: TournamentRouteContext) {
     .from("tournaments")
     .update(tournament)
     .eq("id", id)
-    .select("id,province_id,name,venue,starts_at,ends_at,registration_closes_at,fee_structure,tournament_categories,provinces(name,code)")
+    .select("id,province_id,name,venue,starts_at,ends_at,registration_closes_at,age_calculation_basis,fee_structure,tournament_categories,provinces(name,code)")
     .single();
 
   if (error) {

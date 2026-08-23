@@ -118,6 +118,37 @@ function studentAge(dateOfBirth: string | null) {
   return age;
 }
 
+function tournamentAgeReferenceDate(tournament: Tournament | null) {
+  const startDate = tournament?.starts_at ? new Date(tournament.starts_at) : new Date();
+  const fallbackDate = Number.isNaN(startDate.getTime()) ? new Date() : startDate;
+
+  if (tournament?.age_calculation_basis === "year_end") {
+    return new Date(fallbackDate.getFullYear(), 11, 31);
+  }
+
+  return fallbackDate;
+}
+
+function studentAgeForTournament(dateOfBirth: string | null | undefined, tournament: Tournament | null) {
+  if (!dateOfBirth) return "Not recorded";
+
+  const birthDate = new Date(dateOfBirth);
+  if (Number.isNaN(birthDate.getTime())) return "Not recorded";
+
+  const referenceDate = tournamentAgeReferenceDate(tournament);
+  let age = referenceDate.getFullYear() - birthDate.getFullYear();
+  const hasBirthdayPassed =
+    referenceDate.getMonth() > birthDate.getMonth() ||
+    (referenceDate.getMonth() === birthDate.getMonth() && referenceDate.getDate() >= birthDate.getDate());
+
+  if (!hasBirthdayPassed) age -= 1;
+  return String(age);
+}
+
+function ageBasisLabel(value: string | null | undefined) {
+  return value === "year_end" ? "Age on 31 Dec of tournament year" : "Age on competition date";
+}
+
 export default function SchoolClient({ section = "overview" }: SchoolClientProps) {
   const [token, setToken] = useState("");
   const [school, setSchool] = useState<School | null>(null);
@@ -756,7 +787,7 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
 
   function exportEntriesCsv(tournament: Tournament | null, tournamentEntries: TournamentEntry[]) {
     const rows = [
-      ["Tournament", "Date", "Venue", "Student", "Gender", "Rank", "Category", "Special needs", "Status", "Result", "Points"],
+      ["Tournament", "Date", "Venue", "Student", "Age", "Gender", "Rank", "Category", "Special needs", "Status", "Result", "Points"],
       ...tournamentEntries.map((entry) => {
         const entryTournament = tournament ?? tournaments.find((item) => item.id === entry.tournament_id) ?? null;
         return [
@@ -764,6 +795,7 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
           entryTournament?.starts_at ? formatTournamentDate(entryTournament.starts_at) : "",
           entryTournament?.venue ?? "",
           `${entry.students?.first_name ?? ""} ${entry.students?.last_name ?? ""}`.trim(),
+          studentAgeForTournament(entry.students?.date_of_birth, entryTournament),
           formatGender(entry.students?.gender),
           entry.students?.belt_rank ?? "",
           entry.category ?? "",
@@ -774,7 +806,7 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
         ];
       }),
       [],
-      ["Total fees", "", "", "", "", "", "", "", "", "", tournament ? formatFee(totalFeeForEntries(tournament, tournamentEntries)) : ""],
+      ["Total fees", "", "", "", "", "", "", "", "", "", "", tournament ? formatFee(totalFeeForEntries(tournament, tournamentEntries)) : ""],
     ];
     const csv = rows.map((row) => row.map(csvCell).join(",")).join("\r\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
@@ -1029,6 +1061,7 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
                 <dl className="tournament-mini-grid">
                   <div><dt>Date</dt><dd>{formatTournamentDate(tournament.starts_at)}</dd></div>
                   <div><dt>Entries close</dt><dd>{tournament.registration_closes_at ? formatTournamentDate(tournament.registration_closes_at) : "Not set"}</dd></div>
+                  <div><dt>Age rule</dt><dd>{ageBasisLabel(tournament.age_calculation_basis)}</dd></div>
                 </dl>
                 <p className="small-note">{feeSummary(tournament)}</p>
               </article>
@@ -1075,6 +1108,7 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
                     <thead>
                       <tr>
                         <th>Student</th>
+                        <th>Age</th>
                         <th>Gender</th>
                         <th>Rank</th>
                         <th>Category</th>
@@ -1087,6 +1121,7 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
                       {tournamentEntries.map((entry) => (
                         <tr key={entry.id}>
                           <td>{entry.students?.first_name} {entry.students?.last_name}</td>
+                          <td>{studentAgeForTournament(entry.students?.date_of_birth, tournament)}</td>
                           <td>{formatGender(entry.students?.gender)}</td>
                           <td>{entry.students?.belt_rank ?? "No rank"}</td>
                           <td>{entry.category ?? "No category"}</td>
@@ -1131,6 +1166,7 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
                 <dl className="tournament-mini-grid">
                   <div><dt>Date</dt><dd>{formatTournamentDate(tournament.starts_at)}</dd></div>
                   <div><dt>Entries close</dt><dd>{tournament.registration_closes_at ? formatTournamentDate(tournament.registration_closes_at) : "Not set"}</dd></div>
+                  <div><dt>Age rule</dt><dd>{ageBasisLabel(tournament.age_calculation_basis)}</dd></div>
                 </dl>
                 <p className="small-note">{feeSummary(tournament)}</p>
                 <button className="secondary-button compact" disabled={students.length === 0} onClick={() => startRegistration(tournament)} type="button">
@@ -1217,6 +1253,7 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
                     <thead>
                       <tr>
                         <th>Student</th>
+                        <th>Age</th>
                         <th>Gender</th>
                         <th>Rank</th>
                         <th>Category</th>
@@ -1230,6 +1267,7 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
                       {tournamentEntries.map((entry) => (
                         <tr key={entry.id}>
                           <td>{entry.students?.first_name} {entry.students?.last_name}</td>
+                          <td>{studentAgeForTournament(entry.students?.date_of_birth, tournament)}</td>
                           <td>{formatGender(entry.students?.gender)}</td>
                           <td>{entry.students?.belt_rank ?? "No rank"}</td>
                           <td>{entry.category ?? "No category"}</td>
