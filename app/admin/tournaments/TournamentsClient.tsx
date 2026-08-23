@@ -203,6 +203,63 @@ function editEntry(entry: TournamentEntry) {
     return `R${value.toFixed(2)}`;
   }
 
+  function csvCell(value: string | number | boolean | null | undefined) {
+    const text = value === null || value === undefined ? "" : String(value);
+    return `"${text.replace(/"/g, '""')}"`;
+  }
+
+  function fileSafeName(value: string) {
+    return value
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 80) || "tournament-entries";
+  }
+
+  function exportEntriesCsv(tournament: Tournament | null, tournamentEntries: TournamentEntry[]) {
+    const rows = [
+      [
+        "Tournament",
+        "Date",
+        "Venue",
+        "Student",
+        "Age",
+        "School",
+        "Category",
+        "Special needs",
+        "Result",
+        "Points",
+        "Status",
+      ],
+      ...tournamentEntries.map((entry) => {
+        const entryTournament = tournament ?? tournaments.find((item) => item.id === entry.tournament_id) ?? null;
+        return [
+          entryTournament?.name ?? entry.tournaments?.name ?? "",
+          entryTournament?.starts_at ? formatTournamentDate(entryTournament.starts_at) : "",
+          entryTournament?.venue ?? "",
+          `${entry.students?.first_name ?? ""} ${entry.students?.last_name ?? ""}`.trim(),
+          studentAge(entry.students?.date_of_birth),
+          entry.schools?.name ?? "",
+          entry.category ?? "",
+          entry.special_needs ? "Yes" : "No",
+          entry.result_label || entry.medal || "Entered",
+          entry.points ?? 0,
+          entry.status,
+        ];
+      }),
+    ];
+    const csv = rows.map((row) => row.map(csvCell).join(",")).join("\r\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${fileSafeName(tournament?.name ?? "all-tournament-entries")}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  }
+
   function studentAge(dateOfBirth: string | null | undefined) {
     if (!dateOfBirth) return "Not recorded";
 
@@ -580,6 +637,9 @@ function editEntry(entry: TournamentEntry) {
       <section className="section-title">
         <h2>Results by tournament</h2>
         <p>Open a tournament to manage its students, categories, results, and points.</p>
+        <button className="secondary-button compact" disabled={entries.length === 0} onClick={() => exportEntriesCsv(null, entries)} type="button">
+          Export all entries
+        </button>
       </section>
       <section className="tournament-accordion-list">
         {tournamentGroups.length === 0 ? (
@@ -600,7 +660,15 @@ function editEntry(entry: TournamentEntry) {
                 </span>
               </summary>
               <section className="content-shell" style={{ margin: "14px 0" }}>
-                <h3 style={{ marginTop: 0 }}>School fee totals</h3>
+                <div className="section-title" style={{ marginBottom: 12 }}>
+                  <div>
+                    <h3 style={{ marginTop: 0 }}>School fee totals</h3>
+                    <p>Fees grouped by school for this tournament.</p>
+                  </div>
+                  <button className="secondary-button compact" disabled={tournamentEntries.length === 0} onClick={() => exportEntriesCsv(tournament, tournamentEntries)} type="button">
+                    Export entries
+                  </button>
+                </div>
                 {schoolFeeTotals(tournament, tournamentEntries).length === 0 ? (
                   <p className="muted">No school entries yet.</p>
                 ) : (

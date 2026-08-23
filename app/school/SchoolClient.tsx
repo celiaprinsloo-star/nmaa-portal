@@ -697,6 +697,19 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
     return `R${value.toFixed(2)}`;
   }
 
+  function csvCell(value: string | number | boolean | null | undefined) {
+    const text = value === null || value === undefined ? "" : String(value);
+    return `"${text.replace(/"/g, '""')}"`;
+  }
+
+  function fileSafeName(value: string) {
+    return value
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 80) || "tournament-entries";
+  }
+
   function tournamentCategoryList(tournamentId: string) {
     const tournament = tournaments.find((item) => item.id === tournamentId);
     return tournament?.tournament_categories?.length ? tournament.tournament_categories : [...tournamentCategories];
@@ -734,6 +747,39 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
     }, {});
 
     return Object.values(entriesByStudent).reduce((total, entryCount) => total + feeForStudentEntries(tournament, entryCount), 0);
+  }
+
+  function exportEntriesCsv(tournament: Tournament | null, tournamentEntries: TournamentEntry[]) {
+    const rows = [
+      ["Tournament", "Date", "Venue", "Student", "Rank", "Category", "Special needs", "Status", "Result", "Points"],
+      ...tournamentEntries.map((entry) => {
+        const entryTournament = tournament ?? tournaments.find((item) => item.id === entry.tournament_id) ?? null;
+        return [
+          entryTournament?.name ?? entry.tournaments?.name ?? "",
+          entryTournament?.starts_at ? formatTournamentDate(entryTournament.starts_at) : "",
+          entryTournament?.venue ?? "",
+          `${entry.students?.first_name ?? ""} ${entry.students?.last_name ?? ""}`.trim(),
+          entry.students?.belt_rank ?? "",
+          entry.category ?? "",
+          entry.special_needs ? "Yes" : "No",
+          entry.status,
+          entry.result_label || entry.medal || "Pending result",
+          entry.points ?? 0,
+        ];
+      }),
+      [],
+      ["Total fees", "", "", "", "", "", "", "", "", tournament ? formatFee(totalFeeForEntries(tournament, tournamentEntries)) : ""],
+    ];
+    const csv = rows.map((row) => row.map(csvCell).join(",")).join("\r\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${fileSafeName(tournament?.name ?? "all-tournament-entries")}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
   }
 
   const upcomingTournaments = tournaments
@@ -1133,6 +1179,9 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
         <section className="section-title">
           <h2>Your tournament registrations</h2>
           <p>Open a tournament to review your school&apos;s registered students and recorded results.</p>
+          <button className="secondary-button compact" disabled={entries.length === 0} onClick={() => exportEntriesCsv(null, entries)} type="button">
+            Export all entries
+          </button>
         </section>
         <section className="tournament-accordion-list">
           {registrationGroups.length === 0 ? (
@@ -1150,6 +1199,11 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
                     <b>{formatFee(totalFeeForEntries(tournament, tournamentEntries))}</b> total fees
                   </span>
                 </summary>
+                <div className="row-actions" style={{ margin: "14px 0" }}>
+                  <button className="secondary-button compact" disabled={tournamentEntries.length === 0} onClick={() => exportEntriesCsv(tournament, tournamentEntries)} type="button">
+                    Export entries
+                  </button>
+                </div>
                 <div className="responsive-table">
                   <table>
                     <thead>
