@@ -31,9 +31,36 @@ export async function PATCH(request: Request, context: EntryRouteContext) {
 
   const { id } = await context.params;
   const body = await request.json().catch(() => null);
-  const entry = cleanEntryBody(body);
   const supabase = createSupabaseAdminClient();
   const { data: existing } = await supabase.from("tournament_entries").select("school_id,status").eq("id", id).single();
+
+  if (body?.clear_result === true) {
+    if (!existing || !(await canAccessSchool(supabase, user, existing.school_id))) {
+      return Response.json({ error: "Tournament entry not found." }, { status: 404 });
+    }
+
+    const { data, error } = await supabase
+      .from("tournament_entries")
+      .update({ result_label: null, medal: null, points: null, status: "registered" })
+      .eq("id", id)
+      .select("id,tournament_id,student_id,school_id,category,result_label,medal,points,special_needs,status,students(first_name,last_name,belt_rank,date_of_birth,gender),schools(name),tournaments(name)")
+      .single();
+
+    if (error) return Response.json({ error: error.message }, { status: 400 });
+
+    await logAuditEvent({
+      actorId: user.id,
+      action: "tournament_entry.result_cleared",
+      entityTable: "tournament_entries",
+      entityId: id,
+      summary: "Cleared tournament result",
+      metadata: { school_id: data.school_id },
+    });
+
+    return Response.json({ entry: data });
+  }
+
+  const entry = cleanEntryBody(body);
 
   if (entry.status === "registered" && user.profile.role === "instructor") {
     return Response.json({ error: "Only school owners can manage tournament registrations." }, { status: 403 });

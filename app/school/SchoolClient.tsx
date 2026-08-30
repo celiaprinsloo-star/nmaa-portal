@@ -711,6 +711,26 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
     await loadAll(token);
   }
 
+  async function clearResult(entryId: string) {
+    setBusy(true);
+    setError("");
+
+    const response = await fetch(`/api/tournament-entries/${entryId}`, {
+      method: "PATCH",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ clear_result: true }),
+    });
+    const payload = await response.json().catch(() => ({}));
+    setBusy(false);
+
+    if (!response.ok) {
+      setError(payload.error ?? "Unable to clear tournament result.");
+      return;
+    }
+
+    await loadAll(token);
+  }
+
   const sectionTitle = {
     overview: school?.name ?? "My school",
     details: "School information",
@@ -1243,7 +1263,12 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
                           <td>{entry.category ?? "No category"}</td>
                           <td>{entry.result_label || entry.medal || "Entered"}</td>
                           <td>{entry.points ?? 0}</td>
-                          <td><button className="secondary-button compact" onClick={() => editResult(entry)} type="button">Edit</button></td>
+                          <td>
+                            <div className="row-actions">
+                              <button className="secondary-button compact" onClick={() => editResult(entry)} type="button">Edit</button>
+                              <button className="danger-button compact" disabled={busy || (!entry.medal && !entry.result_label)} onClick={() => clearResult(entry.id)} type="button">Clear result</button>
+                            </div>
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -1596,7 +1621,10 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
                   <div><dt>Points</dt><dd>{entry.points ?? 0}</dd></div>
                 </dl>
               </div>
-              <button className="secondary-button compact" onClick={() => editResult(entry)} type="button">Edit</button>
+              <div className="row-actions">
+                <button className="secondary-button compact" onClick={() => editResult(entry)} type="button">Edit</button>
+                <button className="danger-button compact" disabled={busy || (!entry.medal && !entry.result_label)} onClick={() => clearResult(entry.id)} type="button">Clear result</button>
+              </div>
             </article>
           ))}
         </section>

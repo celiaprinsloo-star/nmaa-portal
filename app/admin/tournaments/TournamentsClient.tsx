@@ -542,6 +542,24 @@ function editEntry(entry: TournamentEntry) {
     await loadTournaments(token);
   }
 
+  async function clearEntryResult(id: string) {
+    setBusy(true);
+    const response = await fetch(`/api/admin/tournament-entries/${id}`, {
+      method: "PATCH",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ clear_result: true }),
+    });
+    const payload = await response.json();
+    setBusy(false);
+
+    if (!response.ok) {
+      setError(payload.error ?? "Unable to clear tournament result.");
+      return;
+    }
+
+    await loadTournaments(token);
+  }
+
   return (
     <main className="app-page">
       <header className="page-header">
@@ -883,6 +901,7 @@ function editEntry(entry: TournamentEntry) {
                           <td>
                             <div className="row-actions">
                               <button className="secondary-button compact" onClick={() => editEntry(entry)} type="button">Edit</button>
+                              <button className="danger-button compact" disabled={busy || (!entry.medal && !entry.result_label)} onClick={() => clearEntryResult(entry.id)} type="button">Clear result</button>
                               <button className="danger-button compact" disabled={busy} onClick={() => deleteEntry(entry.id)} type="button">Delete</button>
                             </div>
                           </td>
