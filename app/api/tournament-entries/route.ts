@@ -106,7 +106,7 @@ export async function POST(request: Request) {
   const supabase = createSupabaseAdminClient();
 
   if (!(await canAccessSchool(supabase, user, entry.school_id))) {
-    return Response.json({ error: "You cannot add tournament entries for that school." }, { status: 403 });
+    return Response.json({ error: "You cannot add tournament events for that school." }, { status: 403 });
   }
 
   const { data: existingEntry } = await supabase
@@ -122,7 +122,7 @@ export async function POST(request: Request) {
 
     if (isResultSubmission) {
       if (!(await canAccessSchool(supabase, user, existingEntry.school_id))) {
-        return Response.json({ error: "Tournament entry not found." }, { status: 404 });
+        return Response.json({ error: "Tournament event not found." }, { status: 404 });
       }
 
       const { data, error } = await supabase

@@ -36,7 +36,7 @@ export async function PATCH(request: Request, context: EntryRouteContext) {
 
   if (body?.clear_result === true) {
     if (!existing || !(await canAccessSchool(supabase, user, existing.school_id))) {
-      return Response.json({ error: "Tournament entry not found." }, { status: 404 });
+      return Response.json({ error: "Tournament event not found." }, { status: 404 });
     }
 
     const { data, error } = await supabase
@@ -67,7 +67,7 @@ export async function PATCH(request: Request, context: EntryRouteContext) {
   }
 
   if (!existing || !(await canAccessSchool(supabase, user, existing.school_id)) || !(await canAccessSchool(supabase, user, entry.school_id))) {
-    return Response.json({ error: "Tournament entry not found." }, { status: 404 });
+    return Response.json({ error: "Tournament event not found." }, { status: 404 });
   }
 
   const { data: duplicateEntry } = await supabase
@@ -114,7 +114,7 @@ export async function DELETE(request: Request, context: EntryRouteContext) {
   const { data: existing } = await supabase.from("tournament_entries").select("school_id,status").eq("id", id).single();
 
   if (!existing || !(await canAccessSchool(supabase, user, existing.school_id))) {
-    return Response.json({ error: "Tournament entry not found." }, { status: 404 });
+    return Response.json({ error: "Tournament event not found." }, { status: 404 });
   }
 
   if (existing.status === "registered" && user.profile.role === "instructor") {

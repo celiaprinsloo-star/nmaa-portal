@@ -767,7 +767,7 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
     details: "Update your school contact and registration information.",
     instructors: "Manage instructor details, certification, and training status.",
     compliance: "Record safeguarding, first aid, NQF, and instructor training documents.",
-    results: "Add entries and results for your school's students.",
+    results: "Add events and results for your school's students.",
     tournaments: "Register your school students for upcoming tournaments.",
   }[section];
 
@@ -850,7 +850,7 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-+|-+$/g, "")
-      .slice(0, 80) || "tournament-entries";
+      .slice(0, 80) || "tournament-events";
   }
 
   function formatGender(value: string | null | undefined) {
@@ -1056,7 +1056,7 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `${fileSafeName(tournament?.name ?? "all-tournament-entries")}.csv`;
+    link.download = `${fileSafeName(tournament?.name ?? "all-tournament-events")}.csv`;
     document.body.appendChild(link);
     link.click();
     link.remove();
@@ -1118,7 +1118,7 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
           </span>
           <span className="tournament-summary-counts">
             <b>{stats.students}</b> students
-            <b>{stats.entries}</b> entries
+            <b>{stats.entries}</b> events
             <b>{stats.points}</b> points
             {mode === "registrations" ? <b>{formatFee(stats.totalFees)}</b> : null}
             {mode === "registrations" ? <span className={`status-pill status-${feePaymentStatus}`}>{feePaymentStatus}</span> : null}
@@ -1128,7 +1128,7 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
         <div className="tournament-insights">
           <dl className="tournament-mini-grid">
             <div><dt>Students</dt><dd>{stats.students}</dd></div>
-            <div><dt>Entries</dt><dd>{stats.entries}</dd></div>
+            <div><dt>Events</dt><dd>{stats.entries}</dd></div>
             <div><dt>Results captured</dt><dd>{stats.resulted}</dd></div>
             <div><dt>Missing results</dt><dd>{stats.missing}</dd></div>
             <div><dt>Points</dt><dd>{stats.points}</dd></div>
@@ -1167,14 +1167,14 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
           <article className="tournament-top-list">
             <h4>Top students from your school</h4>
             {topStudents.length === 0 ? (
-              <p className="muted">No student entries yet.</p>
+              <p className="muted">No student events yet.</p>
             ) : (
               <div className="responsive-table compact-table">
                 <table>
                   <thead>
                     <tr>
                       <th>Student</th>
-                      <th>Entries</th>
+                      <th>Events</th>
                       <th>Points</th>
                       <th>Results</th>
                     </tr>
@@ -1240,10 +1240,10 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
               Missing results only
             </label>
             <button className="secondary-button compact" disabled={visibleEntries.length === 0} onClick={() => exportEntriesCsv(tournament, visibleEntries)} type="button">
-              Export shown entries
+              Export shown events
             </button>
           </div>
-          <p className="small-note">Showing {visibleEntries.length} of {tournamentEntries.length} entries. Visible total fees: {formatFee(visibleStats.totalFees)}.</p>
+          <p className="small-note">Showing {visibleEntries.length} of {tournamentEntries.length} events. Visible total fees: {formatFee(visibleStats.totalFees)}.</p>
         </div>
 
         <div className="responsive-table">
@@ -1265,7 +1265,7 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
             <tbody>
               {visibleEntries.length === 0 ? (
                 <tr>
-                  <td colSpan={showRegistrationActions ? 10 : 9}>No entries match the current filters.</td>
+                  <td colSpan={showRegistrationActions ? 10 : 9}>No events match the current filters.</td>
                 </tr>
               ) : (
                 visibleEntries.map((entry) => (
@@ -1500,7 +1500,7 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
         {errorBlock}
         <section className="section-title">
           <h2>Upcoming tournaments</h2>
-          <p>Tournaments open to schools for entries and results.</p>
+          <p>Tournaments open to schools for events and results.</p>
         </section>
         <section className="tournament-card-grid">
           {upcomingTournaments.length === 0 ? (
@@ -1517,7 +1517,7 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
                 </div>
                 <dl className="tournament-mini-grid">
                   <div><dt>Date</dt><dd>{formatTournamentDate(tournament.starts_at)}</dd></div>
-                  <div><dt>Entries close</dt><dd>{tournament.registration_closes_at ? formatTournamentDate(tournament.registration_closes_at) : "Not set"}</dd></div>
+                  <div><dt>Registration closes</dt><dd>{tournament.registration_closes_at ? formatTournamentDate(tournament.registration_closes_at) : "Not set"}</dd></div>
                   <div><dt>Age rule</dt><dd>{ageBasisLabel(tournament.age_calculation_basis)}</dd></div>
                 </dl>
                 <p className="small-note">{feeSummary(tournament)}</p>
@@ -1633,7 +1633,7 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
                 </div>
                 <dl className="tournament-mini-grid">
                   <div><dt>Date</dt><dd>{formatTournamentDate(tournament.starts_at)}</dd></div>
-                  <div><dt>Entries close</dt><dd>{tournament.registration_closes_at ? formatTournamentDate(tournament.registration_closes_at) : "Not set"}</dd></div>
+                  <div><dt>Registration closes</dt><dd>{tournament.registration_closes_at ? formatTournamentDate(tournament.registration_closes_at) : "Not set"}</dd></div>
                   <div><dt>Age rule</dt><dd>{ageBasisLabel(tournament.age_calculation_basis)}</dd></div>
                 </dl>
                 <p className="small-note">{feeSummary(tournament)}</p>
@@ -1692,7 +1692,7 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
           <h2>Your tournament registrations</h2>
           <p>Open a tournament to review your school&apos;s registered students and recorded results.</p>
           <button className="secondary-button compact" disabled={entries.length === 0} onClick={() => exportEntriesCsv(null, entries)} type="button">
-            Export all entries
+            Export all events
           </button>
         </section>
         <section className="tournament-accordion-list">
@@ -1825,7 +1825,7 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
         </section>
       </section>
 
-      <section className="section-title results-block"><h2>Tournament Results</h2><p>Add entries and results for your school&apos;s students.</p></section>
+      <section className="section-title results-block"><h2>Tournament Results</h2><p>Add events and results for your school&apos;s students.</p></section>
       <section className="two-column-workspace results-block">
         <form className="admin-form" onSubmit={saveResult}>
           <h2>{editingResultId ? "Edit result" : "Add result"}</h2>

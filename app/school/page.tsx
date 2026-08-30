@@ -40,7 +40,7 @@ export default function SchoolPage() {
     },
     {
       title: "Tournament results",
-      description: "Record student entries, medals, and points.",
+      description: "Record student events, medals, and points.",
       href: "/school/results",
     },
   ];

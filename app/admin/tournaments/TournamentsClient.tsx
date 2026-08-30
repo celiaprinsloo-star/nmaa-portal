@@ -290,7 +290,7 @@ function editEntry(entry: TournamentEntry) {
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-+|-+$/g, "")
-      .slice(0, 80) || "tournament-entries";
+      .slice(0, 80) || "tournament-events";
   }
 
   function exportEntriesCsv(tournament: Tournament | null, tournamentEntries: TournamentEntry[]) {
@@ -334,7 +334,7 @@ function editEntry(entry: TournamentEntry) {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `${fileSafeName(tournament?.name ?? "all-tournament-entries")}.csv`;
+    link.download = `${fileSafeName(tournament?.name ?? "all-tournament-events")}.csv`;
     document.body.appendChild(link);
     link.click();
     link.remove();
@@ -685,7 +685,7 @@ function editEntry(entry: TournamentEntry) {
 
     const failedResponse = responses.find((response) => !response.ok);
     if (failedResponse) {
-      setError(failedResponse.payload.error ?? "Unable to save tournament entry.");
+      setError(failedResponse.payload.error ?? "Unable to save tournament event.");
       return;
     }
 
@@ -720,7 +720,7 @@ function editEntry(entry: TournamentEntry) {
     setBusy(false);
 
     if (!response.ok) {
-      setError(payload.error ?? "Unable to delete tournament entry.");
+      setError(payload.error ?? "Unable to delete tournament event.");
       return;
     }
 
@@ -770,7 +770,7 @@ function editEntry(entry: TournamentEntry) {
           </span>
           <span className="tournament-summary-counts">
             <b>{competitors}</b> competitors
-            <b>{tournamentEntries.length}</b> entries
+            <b>{tournamentEntries.length}</b> events
             <b>{points}</b> points
             <b>{formatFee(schoolTotals.reduce((total, school) => total + school.total, 0))}</b> fees
           </span>
@@ -783,12 +783,12 @@ function editEntry(entry: TournamentEntry) {
               <p>Totals, category spread, medal summary, and top competitors for this tournament.</p>
             </div>
             <button className="secondary-button compact" disabled={tournamentEntries.length === 0} onClick={() => exportEntriesCsv(tournament, tournamentEntries)} type="button">
-              Export entries
+              Export events
             </button>
           </div>
           <dl className="tournament-mini-grid">
             <div><dt>Competitors</dt><dd>{stats.competitors}</dd></div>
-            <div><dt>Entries</dt><dd>{stats.entries}</dd></div>
+            <div><dt>Events</dt><dd>{stats.entries}</dd></div>
             <div><dt>Results</dt><dd>{stats.results}</dd></div>
             <div><dt>Points</dt><dd>{stats.points}</dd></div>
             <div><dt>Male</dt><dd>{stats.male}</dd></div>
@@ -829,7 +829,7 @@ function editEntry(entry: TournamentEntry) {
                     <th>Rank</th>
                     <th>Student</th>
                     <th>School</th>
-                    <th>Entries</th>
+                    <th>Events</th>
                     <th>Results</th>
                     <th>Points</th>
                   </tr>
@@ -854,7 +854,7 @@ function editEntry(entry: TournamentEntry) {
         <section className="content-shell" style={{ margin: "14px 0" }}>
           <h3 style={{ marginTop: 0 }}>School fee totals</h3>
           {schoolTotals.length === 0 ? (
-            <p className="muted">No school entries yet.</p>
+            <p className="muted">No school events yet.</p>
           ) : (
             <div className="responsive-table">
               <table>
@@ -862,7 +862,7 @@ function editEntry(entry: TournamentEntry) {
                   <tr>
                     <th>School</th>
                     <th>Students</th>
-                    <th>Entries</th>
+                    <th>Events</th>
                     <th>Total fee</th>
                     <th>Payment</th>
                     <th>Action</th>
@@ -950,7 +950,7 @@ function editEntry(entry: TournamentEntry) {
                 </select>
               </label>
             </div>
-            <p className="small-note">Showing {visibleEntries.length} of {tournamentEntries.length} entries.</p>
+            <p className="small-note">Showing {visibleEntries.length} of {tournamentEntries.length} events.</p>
             <div className="responsive-table">
               <table>
                 <thead>
@@ -1004,7 +1004,7 @@ function editEntry(entry: TournamentEntry) {
           <BrandMark compact />
           <p className="eyebrow">Admin</p>
           <h1>Tournaments</h1>
-          <p className="muted">Create tournaments, enter students, and record results.</p>
+          <p className="muted">Create tournaments, add student events, and record results.</p>
         </div>
         <div className="row-actions">
           <Link className="secondary-button compact" href="/dashboard">Dashboard</Link>
@@ -1049,7 +1049,7 @@ function editEntry(entry: TournamentEntry) {
                     <th>Gold</th>
                     <th>Silver</th>
                     <th>Bronze</th>
-                    <th>Entries</th>
+                    <th>Events</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1160,12 +1160,12 @@ function editEntry(entry: TournamentEntry) {
         <details className="collapsible-form-panel" open={Boolean(editingEntryId)}>
           <summary>
             <span>
-              <strong>{editingEntryId ? "Edit result" : "Add entry / result"}</strong>
+              <strong>{editingEntryId ? "Edit result" : "Add event / result"}</strong>
               <small>Select a student, categories, special needs, and results.</small>
             </span>
           </summary>
           <form className="admin-form" onSubmit={saveEntry}>
-          <h2>{editingEntryId ? "Edit result" : "Add entry / result"}</h2>
+          <h2>{editingEntryId ? "Edit result" : "Add event / result"}</h2>
           <label>
             Tournament
             <select value={entryForm.tournament_id} onChange={(event) => updateEntryField("tournament_id", event.target.value)} required>
@@ -1274,7 +1274,7 @@ function editEntry(entry: TournamentEntry) {
             </div>
             <dl className="tournament-mini-grid">
               <div><dt>Competitors</dt><dd>{competitors}</dd></div>
-              <div><dt>Entries</dt><dd>{tournamentEntries.length}</dd></div>
+              <div><dt>Events</dt><dd>{tournamentEntries.length}</dd></div>
               <div><dt>Results</dt><dd>{results}</dd></div>
               <div><dt>Points</dt><dd>{points}</dd></div>
               <div><dt>Registration closes</dt><dd>{tournament.registration_closes_at ? formatTournamentDate(tournament.registration_closes_at) : "Not set"}</dd></div>
@@ -1294,7 +1294,7 @@ function editEntry(entry: TournamentEntry) {
         <h2>Results by tournament</h2>
         <p>Open a tournament to manage its students, categories, results, and points.</p>
         <button className="secondary-button compact" disabled={entries.length === 0} onClick={() => exportEntriesCsv(null, entries)} type="button">
-          Export all entries
+          Export all events
         </button>
       </section>
       <section className="tournament-accordion-list">
