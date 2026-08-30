@@ -1626,6 +1626,200 @@ label {
   color: #111827;
 }
 
+.collapsible-form-panel {
+  overflow: hidden;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-top: 4px solid var(--accent);
+  border-radius: 8px;
+  box-shadow: var(--shadow-card);
+}
+
+.collapsible-form-panel summary {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 78px;
+  padding: 18px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.collapsible-form-panel summary::-webkit-details-marker {
+  display: none;
+}
+
+.collapsible-form-panel summary::after {
+  content: "+";
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 32px;
+  aspect-ratio: 1;
+  background: var(--accent-soft);
+  border: 1px solid rgba(0, 121, 107, 0.18);
+  border-radius: 999px;
+  color: var(--accent-dark);
+  font-size: 18px;
+  font-weight: 900;
+}
+
+.collapsible-form-panel[open] summary::after {
+  content: "-";
+}
+
+.collapsible-form-panel summary span {
+  display: grid;
+  gap: 4px;
+}
+
+.collapsible-form-panel summary strong {
+  color: #111827;
+  font-size: 19px;
+}
+
+.collapsible-form-panel summary small {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.collapsible-form-panel .admin-form {
+  border: 0;
+  border-top: 1px solid var(--line);
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.leaderboard-shell {
+  display: grid;
+  gap: 18px;
+}
+
+.leaderboard-podium {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  align-items: end;
+}
+
+.podium-card {
+  position: relative;
+  display: grid;
+  gap: 8px;
+  min-height: 190px;
+  padding: 18px;
+  background: linear-gradient(180deg, #ffffff 0%, #f7fafc 100%);
+  border: 1px solid var(--line);
+  border-top: 5px solid #9ca3af;
+  border-radius: 8px;
+  box-shadow: 0 16px 34px rgba(15, 23, 42, 0.08);
+}
+
+.podium-rank-1 {
+  min-height: 220px;
+  border-top-color: #d6a419;
+  order: 2;
+}
+
+.podium-rank-2 {
+  border-top-color: #9ca3af;
+  order: 1;
+}
+
+.podium-rank-3 {
+  border-top-color: #b7791f;
+  order: 3;
+}
+
+.podium-rank {
+  width: fit-content;
+  min-height: 32px;
+  padding: 5px 10px;
+  background: var(--accent-soft);
+  border: 1px solid rgba(0, 121, 107, 0.18);
+  border-radius: 999px;
+  color: var(--accent-dark);
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.podium-card h3 {
+  margin: 0;
+  color: #111827;
+  font-size: 20px;
+  line-height: 1.2;
+}
+
+.podium-card > strong {
+  color: #061626;
+  font-size: 42px;
+  line-height: 1;
+}
+
+.podium-card > span:not(.podium-rank) {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.medal-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 4px;
+}
+
+.medal-strip span {
+  display: inline-flex;
+  gap: 5px;
+  align-items: center;
+  min-height: 30px;
+  padding: 0 9px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: #344054;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.medal-strip b {
+  color: #111827;
+}
+
+.leaderboard-table {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.leaderboard-table table {
+  min-width: 720px;
+}
+
+.leaderboard-table td:nth-child(3),
+.leaderboard-table th:nth-child(3),
+.leaderboard-table td:nth-child(n + 4),
+.leaderboard-table th:nth-child(n + 4) {
+  text-align: right;
+}
+
+.rank-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 42px;
+  min-height: 30px;
+  padding: 0 9px;
+  background: #eef6f5;
+  border: 1px solid rgba(0, 121, 107, 0.18);
+  border-radius: 999px;
+  color: var(--accent-dark);
+  font-weight: 900;
+}
+
 .tournament-insights {
   display: grid;
   gap: 14px;
@@ -1651,6 +1845,10 @@ label {
   border-radius: 8px;
 }
 
+.stat-breakdown-card {
+  align-content: start;
+}
+
 .tournament-stat-columns h4 {
   margin: 0;
   color: #111827;
@@ -1674,6 +1872,53 @@ label {
   color: #1f2937;
   font-size: 13px;
   font-weight: 800;
+}
+
+.result-chip-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(135px, 1fr));
+  gap: 10px;
+}
+
+.result-chip {
+  display: grid;
+  gap: 3px;
+  min-height: 78px;
+  padding: 13px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-left: 4px solid #9ca3af;
+  border-radius: 8px;
+  color: #344054;
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.result-chip b {
+  color: #111827;
+  font-size: 24px;
+  line-height: 1;
+}
+
+.result-gold {
+  border-left-color: #d6a419;
+  background: #fffaf0;
+}
+
+.result-silver {
+  border-left-color: #94a3b8;
+  background: #f8fafc;
+}
+
+.result-bronze {
+  border-left-color: #b7791f;
+  background: #fff7ed;
+}
+
+.result-participation {
+  border-left-color: var(--accent);
+  background: #f0fdfa;
 }
 
 .tournament-table-controls {
@@ -1860,6 +2105,17 @@ label {
 
   .shop-product-grid {
     grid-template-columns: 1fr;
+  }
+
+  .leaderboard-podium {
+    grid-template-columns: 1fr;
+  }
+
+  .podium-rank-1,
+  .podium-rank-2,
+  .podium-rank-3 {
+    order: initial;
+    min-height: 0;
   }
 
   .catalog-admin-head,

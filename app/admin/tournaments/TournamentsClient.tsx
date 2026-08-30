@@ -25,6 +25,7 @@ const emptyFeeStructure = {
 };
 
 const defaultCategoriesText = tournamentCategories.join("\n");
+const medalDisplayOrder = ["Gold", "Silver", "Bronze", "Participation", "Entered"];
 
 const emptyEntry = {
   tournament_id: "",
@@ -451,6 +452,20 @@ function editEntry(entry: TournamentEntry) {
     }, {});
   }
 
+  function sortedCategoryCounts(counts: Record<string, number>) {
+    return Object.entries(counts).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+  }
+
+  function sortedMedalCounts(counts: Record<string, number>) {
+    return Object.entries(counts).sort((a, b) => {
+      const aIndex = medalDisplayOrder.indexOf(a[0]);
+      const bIndex = medalDisplayOrder.indexOf(b[0]);
+      const safeAIndex = aIndex === -1 ? medalDisplayOrder.length : aIndex;
+      const safeBIndex = bIndex === -1 ? medalDisplayOrder.length : bIndex;
+      return safeAIndex - safeBIndex || a[0].localeCompare(b[0]);
+    });
+  }
+
   function topCompetitors(tournamentEntries: TournamentEntry[]) {
     const competitors = new Map<
       string,
@@ -741,16 +756,21 @@ function editEntry(entry: TournamentEntry) {
           </dl>
 
           <div className="tournament-stat-columns">
-            <article>
+            <article className="stat-breakdown-card">
               <h4>Categories</h4>
               <div className="stat-chip-list">
-                {Object.entries(categoryCounts).map(([label, count]) => <span key={label}>{label}: {count}</span>)}
+                {sortedCategoryCounts(categoryCounts).map(([label, count]) => <span key={label}>{label}: {count}</span>)}
               </div>
             </article>
-            <article>
+            <article className="stat-breakdown-card">
               <h4>Results</h4>
-              <div className="stat-chip-list">
-                {Object.entries(medalCounts).map(([label, count]) => <span key={label}>{label}: {count}</span>)}
+              <div className="result-chip-list">
+                {sortedMedalCounts(medalCounts).map(([label, count]) => (
+                  <span className={`result-chip result-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`} key={label}>
+                    <b>{count}</b>
+                    {label}
+                  </span>
+                ))}
               </div>
             </article>
           </div>
@@ -934,29 +954,68 @@ function editEntry(entry: TournamentEntry) {
         <h2>School leaderboard</h2>
         <p>Ranked by points, then medals.</p>
       </section>
-      <section className="content-shell table-list">
+      <section className="content-shell leaderboard-shell">
         {leaderboard.length === 0 ? (
           <article className="empty-state">No tournament results recorded yet.</article>
         ) : (
-          leaderboard.map((row, index) => (
-            <article className="list-row" key={row.school_id}>
-              <div>
-                <h2>{index + 1}. {row.school_name}</h2>
-                <dl className="detail-grid">
-                  <div><dt>Points</dt><dd>{row.points}</dd></div>
-                  <div><dt>Gold</dt><dd>{row.gold}</dd></div>
-                  <div><dt>Silver</dt><dd>{row.silver}</dd></div>
-                  <div><dt>Bronze</dt><dd>{row.bronze}</dd></div>
-                  <div><dt>Entries</dt><dd>{row.entries}</dd></div>
-                </dl>
-              </div>
-            </article>
-          ))
+          <>
+            <div className="leaderboard-podium" aria-label="Top three schools">
+              {leaderboard.slice(0, 3).map((row, index) => (
+                <article className={`podium-card podium-rank-${index + 1}`} key={row.school_id}>
+                  <span className="podium-rank">#{index + 1}</span>
+                  <h3>{row.school_name}</h3>
+                  <strong>{row.points}</strong>
+                  <span>points</span>
+                  <div className="medal-strip">
+                    <span><b>{row.gold}</b> Gold</span>
+                    <span><b>{row.silver}</b> Silver</span>
+                    <span><b>{row.bronze}</b> Bronze</span>
+                  </div>
+                </article>
+              ))}
+            </div>
+
+            <div className="responsive-table leaderboard-table">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Rank</th>
+                    <th>School</th>
+                    <th>Points</th>
+                    <th>Gold</th>
+                    <th>Silver</th>
+                    <th>Bronze</th>
+                    <th>Entries</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {leaderboard.map((row, index) => (
+                    <tr key={row.school_id}>
+                      <td><span className="rank-pill">#{index + 1}</span></td>
+                      <td>{row.school_name}</td>
+                      <td><strong>{row.points}</strong></td>
+                      <td>{row.gold}</td>
+                      <td>{row.silver}</td>
+                      <td>{row.bronze}</td>
+                      <td>{row.entries}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </section>
 
       <section className="two-column-workspace">
-        <form className="admin-form" onSubmit={saveTournament}>
+        <details className="collapsible-form-panel" open={Boolean(editingTournamentId)}>
+          <summary>
+            <span>
+              <strong>{editingTournamentId ? "Edit tournament" : "Add tournament"}</strong>
+              <small>Dates, fees, registration closing date, and categories.</small>
+            </span>
+          </summary>
+          <form className="admin-form" onSubmit={saveTournament}>
           <h2>{editingTournamentId ? "Edit tournament" : "Add tournament"}</h2>
           <label>
             Name
@@ -1031,9 +1090,17 @@ function editEntry(entry: TournamentEntry) {
           <button className="primary-button compact" disabled={busy} type="submit">
             {editingTournamentId ? "Save tournament" : "Add tournament"}
           </button>
-        </form>
+          </form>
+        </details>
 
-        <form className="admin-form" onSubmit={saveEntry}>
+        <details className="collapsible-form-panel" open={Boolean(editingEntryId)}>
+          <summary>
+            <span>
+              <strong>{editingEntryId ? "Edit result" : "Add entry / result"}</strong>
+              <small>Select a student, categories, special needs, and results.</small>
+            </span>
+          </summary>
+          <form className="admin-form" onSubmit={saveEntry}>
           <h2>{editingEntryId ? "Edit result" : "Add entry / result"}</h2>
           <label>
             Tournament
@@ -1123,7 +1190,8 @@ function editEntry(entry: TournamentEntry) {
           <button className="primary-button compact" disabled={busy || tournaments.length === 0 || students.length === 0 || (!editingEntryId && entryCategories.length === 0)} type="submit">
             {editingEntryId ? "Save result" : "Add selected results"}
           </button>
-        </form>
+          </form>
+        </details>
       </section>
 
       <section className="section-title">
