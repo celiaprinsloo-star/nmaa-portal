@@ -63,6 +63,7 @@ export default function TournamentsClient() {
   const [feeForm, setFeeForm] = useState(emptyFeeStructure);
   const [categoriesText, setCategoriesText] = useState(defaultCategoriesText);
   const [entryForm, setEntryForm] = useState(emptyEntry);
+  const [entryCategories, setEntryCategories] = useState<string[]>([]);
   const [editingTournamentId, setEditingTournamentId] = useState("");
   const [editingEntryId, setEditingEntryId] = useState("");
   const [error, setError] = useState("");
@@ -125,12 +126,14 @@ export default function TournamentsClient() {
 
   function updateEntryField(field: keyof typeof emptyEntry, value: string) {
     if (field === "tournament_id") {
+      setEntryCategories([]);
       setEntryForm((current) => ({ ...current, tournament_id: value, category: "" }));
       return;
     }
 
     if (field === "student_id") {
       const selectedStudent = students.find((student) => student.id === value);
+      setEntryCategories([]);
       setEntryForm((current) => ({
         ...current,
         student_id: value,
@@ -142,6 +145,16 @@ export default function TournamentsClient() {
     setEntryForm((current) => ({ ...current, [field]: value }));
   }
 
+  function toggleEntryCategory(category: string, checked: boolean) {
+    setEntryCategories((current) =>
+      checked ? [...new Set([...current, category])] : current.filter((item) => item !== category),
+    );
+    setEntryForm((current) => ({
+      ...current,
+      category: checked ? category : current.category === category ? "" : current.category,
+    }));
+  }
+
   function resetTournamentForm() {
     setEditingTournamentId("");
     setTournamentForm({ ...emptyTournament, province_id: provinces[0]?.id || "" });
@@ -151,6 +164,7 @@ export default function TournamentsClient() {
 
   function resetEntryForm() {
     setEditingEntryId("");
+    setEntryCategories([]);
     setEntryForm({
       ...emptyEntry,
       tournament_id: tournaments[0]?.id || "",
@@ -181,6 +195,7 @@ export default function TournamentsClient() {
 
 function editEntry(entry: TournamentEntry) {
     setEditingEntryId(entry.id);
+    setEntryCategories([]);
     setEntryForm({
       tournament_id: entry.tournament_id,
       student_id: entry.student_id,
@@ -415,22 +430,35 @@ function editEntry(entry: TournamentEntry) {
     setBusy(true);
     setError("");
 
-    const response = await fetch(
-      editingEntryId ? `/api/admin/tournament-entries/${editingEntryId}` : "/api/admin/tournament-entries",
-      {
-        method: editingEntryId ? "PATCH" : "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(entryForm),
-      },
+    const categoriesToSave = editingEntryId ? [entryForm.category].filter(Boolean) : entryCategories;
+
+    if (categoriesToSave.length === 0) {
+      setBusy(false);
+      setError(editingEntryId ? "Select a tournament category." : "Select at least one tournament category for this result.");
+      return;
+    }
+
+    const responses = await Promise.all(
+      categoriesToSave.map(async (category) => {
+        const response = await fetch(
+          editingEntryId ? `/api/admin/tournament-entries/${editingEntryId}` : "/api/admin/tournament-entries",
+          {
+            method: editingEntryId ? "PATCH" : "POST",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ ...entryForm, category }),
+          },
+        );
+        return { ok: response.ok, payload: await response.json().catch(() => ({})) };
+      }),
     );
-    const payload = await response.json();
     setBusy(false);
 
-    if (!response.ok) {
-      setError(payload.error ?? "Unable to save tournament entry.");
+    const failedResponse = responses.find((response) => !response.ok);
+    if (failedResponse) {
+      setError(failedResponse.payload.error ?? "Unable to save tournament entry.");
       return;
     }
 
@@ -610,15 +638,33 @@ function editEntry(entry: TournamentEntry) {
               ))}
             </select>
           </label>
-          <label>
-            Category
-            <select value={entryForm.category} onChange={(event) => updateEntryField("category", event.target.value)} required>
-              <option value="">Select category</option>
-              {tournamentCategoryList(entryForm.tournament_id).map((category) => (
-                <option key={category} value={category}>{category}</option>
-              ))}
-            </select>
-          </label>
+          {editingEntryId ? (
+            <label>
+              Category
+              <select value={entryForm.category} onChange={(event) => updateEntryField("category", event.target.value)} required>
+                <option value="">Select category</option>
+                {tournamentCategoryList(entryForm.tournament_id).map((category) => (
+                  <option key={category} value={category}>{category}</option>
+                ))}
+              </select>
+            </label>
+          ) : (
+            <fieldset style={{ border: "1px solid #d9dee7", borderRadius: 8, display: "grid", gap: 12, gridColumn: "1 / -1", padding: 16 }}>
+              <legend style={{ fontWeight: 800, padding: "0 6px" }}>Result categories</legend>
+              <div style={{ display: "grid", gap: 10, gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}>
+                {tournamentCategoryList(entryForm.tournament_id).map((category) => (
+                  <label className="checkbox-label" key={category} style={{ border: "1px solid #d9dee7", borderRadius: 8, padding: 10 }}>
+                    <input
+                      checked={entryCategories.includes(category)}
+                      onChange={(event) => toggleEntryCategory(category, event.target.checked)}
+                      type="checkbox"
+                    />
+                    {category}
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+          )}
           <label className="checkbox-label"><input checked={entryForm.special_needs} onChange={(event) => setEntryForm((current) => ({ ...current, special_needs: event.target.checked }))} type="checkbox" /> Special needs</label>
           <label>
             Result
@@ -633,8 +679,8 @@ function editEntry(entry: TournamentEntry) {
             Result note
             <input value={entryForm.result_label} onChange={(event) => updateEntryField("result_label", event.target.value)} />
           </label>
-          <button className="primary-button compact" disabled={busy || tournaments.length === 0 || students.length === 0} type="submit">
-            {editingEntryId ? "Save result" : "Add entry"}
+          <button className="primary-button compact" disabled={busy || tournaments.length === 0 || students.length === 0 || (!editingEntryId && entryCategories.length === 0)} type="submit">
+            {editingEntryId ? "Save result" : "Add selected results"}
           </button>
         </form>
       </section>

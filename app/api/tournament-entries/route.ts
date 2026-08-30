@@ -96,13 +96,47 @@ export async function POST(request: Request) {
 
   const { data: existingEntry } = await supabase
     .from("tournament_entries")
-    .select("id")
+    .select("id,school_id")
     .eq("tournament_id", entry.tournament_id)
     .eq("student_id", entry.student_id)
     .eq("category", entry.category)
     .maybeSingle();
 
   if (existingEntry) {
+    const isResultSubmission = Boolean(entry.medal || entry.result_label || entry.status !== "registered");
+
+    if (isResultSubmission) {
+      if (!(await canAccessSchool(supabase, user, existingEntry.school_id))) {
+        return Response.json({ error: "Tournament entry not found." }, { status: 404 });
+      }
+
+      const { data, error } = await supabase
+        .from("tournament_entries")
+        .update({
+          result_label: entry.result_label,
+          medal: entry.medal,
+          points: entry.points,
+          special_needs: entry.special_needs,
+          status: entry.status,
+        })
+        .eq("id", existingEntry.id)
+        .select("id,tournament_id,student_id,school_id,category,result_label,medal,points,special_needs,status,students(first_name,last_name,belt_rank,date_of_birth,gender),schools(name),tournaments(name)")
+        .single();
+
+      if (error) return Response.json({ error: error.message }, { status: 400 });
+
+      await logAuditEvent({
+        actorId: user.id,
+        action: "tournament_entry.updated",
+        entityTable: "tournament_entries",
+        entityId: data.id,
+        summary: "Updated tournament result",
+        metadata: { school_id: data.school_id, medal: data.medal, points: data.points },
+      });
+
+      return Response.json({ entry: data });
+    }
+
     return Response.json({ error: "This student is already registered for that tournament category." }, { status: 400 });
   }
 
