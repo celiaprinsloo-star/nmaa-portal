@@ -1168,7 +1168,11 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
                         <td>{student.points}</td>
                         <td>
                           <div className="inline-result-list">
-                            {sortedMedalCountEntries(student.results).map(([result, count]) => <span key={result}>{result}: {count}</span>)}
+                            {sortedMedalCountEntries(student.results).map(([result, count]) => (
+                              <span className={`inline-result-tag result-${result.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`} key={result}>
+                                {result}: {count}
+                              </span>
+                            ))}
                           </div>
                         </td>
                       </tr>

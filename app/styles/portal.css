@@ -1954,6 +1954,37 @@ label {
   font-weight: 850;
 }
 
+.inline-result-tag.result-gold {
+  background: #fff7d6;
+  border-color: #f2c94c;
+  color: #7a4f00;
+}
+
+.inline-result-tag.result-silver {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+  color: #334155;
+}
+
+.inline-result-tag.result-bronze {
+  background: #fff1e6;
+  border-color: #d08a3e;
+  color: #7c3f12;
+}
+
+.inline-result-tag.result-participation {
+  background: #e9fbf7;
+  border-color: #8bd8c8;
+  color: #006b5f;
+}
+
+.inline-result-tag.result-pending-result,
+.inline-result-tag.result-entered {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+  color: #475569;
+}
+
 .tournament-table-controls {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));

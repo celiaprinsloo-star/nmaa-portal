@@ -71,7 +71,6 @@ export default function OrderingClient() {
   const [token, setToken] = useState("");
   const [catalog, setCatalog] = useState<OrderCatalogItem[]>([]);
   const [quantities, setQuantities] = useState<Record<string, number>>({});
-  const [openCatalogSections, setOpenCatalogSections] = useState<Record<string, boolean>>({});
   const [contactName, setContactName] = useState("");
   const [contactEmail, setContactEmail] = useState("");
   const [notes, setNotes] = useState("");
@@ -241,16 +240,12 @@ export default function OrderingClient() {
         <section className="ordering-catalog" style={catalogStyle}>
           {Object.entries(groupedItems).map(([section, items], index) => {
             const selectedCount = items.reduce((total, item) => total + (quantities[item.id] ?? 0), 0);
-            const isOpen = openCatalogSections[section] ?? index === 0;
 
             return (
               <details
                 className="catalog-stock-group shop-stock-group"
                 key={section}
-                onToggle={(event) =>
-                  setOpenCatalogSections((current) => ({ ...current, [section]: event.currentTarget.open }))
-                }
-                open={isOpen}
+                open={index === 0}
               >
                 <summary>
                   <span>
