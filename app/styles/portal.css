@@ -1626,6 +1626,123 @@ label {
   color: #111827;
 }
 
+.tournament-insights {
+  display: grid;
+  gap: 14px;
+  margin: 14px 0;
+  padding: 18px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.tournament-stat-columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+}
+
+.tournament-stat-columns article {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  background: var(--panel-soft);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.tournament-stat-columns h4 {
+  margin: 0;
+  color: #111827;
+  font-size: 14px;
+}
+
+.stat-chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.stat-chip-list span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 10px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: #1f2937;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.tournament-table-controls {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  align-items: end;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.tournament-table-controls label {
+  display: grid;
+  gap: 6px;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.tournament-table-controls select {
+  width: 100%;
+  min-height: 42px;
+  padding: 0 12px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: #111827;
+  font: inherit;
+  font-weight: 800;
+}
+
+.tournament-table-controls .secondary-button {
+  min-height: 42px;
+  justify-content: center;
+}
+
+.tournament-filter-check {
+  align-self: end;
+  min-height: 42px;
+}
+
+.tournament-top-list {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  background: var(--panel-soft);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.tournament-top-list h4 {
+  margin: 0;
+  color: #111827;
+  font-size: 14px;
+}
+
+.compact-table {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.compact-table table {
+  min-width: 560px;
+}
+
+.compact-table th,
+.compact-table td {
+  padding: 9px 10px;
+}
+
 .responsive-table {
   overflow-x: auto;
   border-top: 1px solid var(--line);

@@ -57,6 +57,16 @@ type CategoryResultDraft = {
   result_label: string;
 };
 
+type TournamentSortKey = "student" | "school" | "result" | "points" | "category" | "age" | "rank";
+
+type TournamentEntryControls = {
+  sort: TournamentSortKey;
+  school: string;
+  result: string;
+  category: string;
+  gender: string;
+};
+
 export default function TournamentsClient() {
   const [token, setToken] = useState("");
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
@@ -70,6 +80,7 @@ export default function TournamentsClient() {
   const [entryForm, setEntryForm] = useState(emptyEntry);
   const [entryCategories, setEntryCategories] = useState<string[]>([]);
   const [entryCategoryDrafts, setEntryCategoryDrafts] = useState<Record<string, CategoryResultDraft>>({});
+  const [entryControls, setEntryControls] = useState<Record<string, TournamentEntryControls>>({});
   const [editingTournamentId, setEditingTournamentId] = useState("");
   const [editingEntryId, setEditingEntryId] = useState("");
   const [error, setError] = useState("");
@@ -350,6 +361,124 @@ function editEntry(entry: TournamentEntry) {
     return value.charAt(0).toUpperCase() + value.slice(1);
   }
 
+  function resultLabel(entry: TournamentEntry) {
+    return entry.result_label || entry.medal || "Entered";
+  }
+
+  function studentName(entry: TournamentEntry) {
+    return `${entry.students?.first_name ?? ""} ${entry.students?.last_name ?? ""}`.trim() || "Unknown student";
+  }
+
+  function medalLabel(value: string | null | undefined) {
+    if (!value) return "Entered";
+    return value.charAt(0).toUpperCase() + value.slice(1);
+  }
+
+  function controlsForTournament(tournamentId: string) {
+    return entryControls[tournamentId] ?? { sort: "student", school: "", result: "", category: "", gender: "" };
+  }
+
+  function updateTournamentEntryControl(tournamentId: string, field: keyof TournamentEntryControls, value: string) {
+    setEntryControls((current) => ({
+      ...current,
+      [tournamentId]: {
+        ...controlsForTournament(tournamentId),
+        [field]: value,
+      },
+    }));
+  }
+
+  function tournamentEntryFilterOptions(tournamentEntries: TournamentEntry[]) {
+    return {
+      schools: Array.from(new Set(tournamentEntries.map((entry) => entry.schools?.name ?? "No school"))).sort(),
+      categories: Array.from(new Set(tournamentEntries.map((entry) => entry.category ?? "No category"))).sort(),
+      results: Array.from(new Set(tournamentEntries.map((entry) => medalLabel(entry.medal)))).sort(),
+      genders: Array.from(new Set(tournamentEntries.map((entry) => formatGender(entry.students?.gender)))).sort(),
+    };
+  }
+
+  function filteredAndSortedEntries(tournament: Tournament, tournamentEntries: TournamentEntry[]) {
+    const controls = controlsForTournament(tournament.id);
+    const filteredEntries = tournamentEntries.filter((entry) => {
+      if (controls.school && (entry.schools?.name ?? "No school") !== controls.school) return false;
+      if (controls.category && (entry.category ?? "No category") !== controls.category) return false;
+      if (controls.result && medalLabel(entry.medal) !== controls.result) return false;
+      if (controls.gender && formatGender(entry.students?.gender) !== controls.gender) return false;
+      return true;
+    });
+
+    return [...filteredEntries].sort((a, b) => {
+      if (controls.sort === "points") return Number(b.points ?? 0) - Number(a.points ?? 0);
+      if (controls.sort === "age") {
+        const aAge = Number(studentAgeForTournament(a.students?.date_of_birth, tournament));
+        const bAge = Number(studentAgeForTournament(b.students?.date_of_birth, tournament));
+        return (Number.isFinite(aAge) ? aAge : 999) - (Number.isFinite(bAge) ? bAge : 999);
+      }
+
+      const values: Record<Exclude<TournamentSortKey, "points" | "age">, [string, string]> = {
+        student: [studentName(a), studentName(b)],
+        school: [a.schools?.name ?? "No school", b.schools?.name ?? "No school"],
+        result: [resultLabel(a), resultLabel(b)],
+        category: [a.category ?? "No category", b.category ?? "No category"],
+        rank: [a.students?.belt_rank ?? "No rank", b.students?.belt_rank ?? "No rank"],
+      };
+      const [aValue, bValue] = values[controls.sort as Exclude<TournamentSortKey, "points" | "age">];
+      return aValue.localeCompare(bValue);
+    });
+  }
+
+  function tournamentStats(tournamentEntries: TournamentEntry[]) {
+    const competitorIds = new Set(tournamentEntries.map((entry) => entry.student_id));
+    const maleIds = new Set(tournamentEntries.filter((entry) => entry.students?.gender === "male").map((entry) => entry.student_id));
+    const femaleIds = new Set(tournamentEntries.filter((entry) => entry.students?.gender === "female").map((entry) => entry.student_id));
+    const specialNeedsIds = new Set(tournamentEntries.filter((entry) => entry.special_needs).map((entry) => entry.student_id));
+
+    return {
+      competitors: competitorIds.size,
+      entries: tournamentEntries.length,
+      results: tournamentEntries.filter((entry) => entry.medal || entry.result_label).length,
+      male: maleIds.size,
+      female: femaleIds.size,
+      specialNeeds: specialNeedsIds.size,
+      points: tournamentEntries.reduce((total, entry) => total + Number(entry.points ?? 0), 0),
+    };
+  }
+
+  function countBy(items: string[]) {
+    return items.reduce<Record<string, number>>((counts, item) => {
+      counts[item] = (counts[item] ?? 0) + 1;
+      return counts;
+    }, {});
+  }
+
+  function topCompetitors(tournamentEntries: TournamentEntry[]) {
+    const competitors = new Map<
+      string,
+      { id: string; name: string; school: string; points: number; entries: number; results: string[] }
+    >();
+
+    for (const entry of tournamentEntries) {
+      const current = competitors.get(entry.student_id) ?? {
+        id: entry.student_id,
+        name: studentName(entry),
+        school: entry.schools?.name ?? "No school",
+        points: 0,
+        entries: 0,
+        results: [],
+      };
+      current.points += Number(entry.points ?? 0);
+      current.entries += 1;
+      if (entry.medal || entry.result_label) {
+        current.results.push(`${entry.category ?? "No category"}: ${resultLabel(entry)}`);
+      }
+      competitors.set(entry.student_id, current);
+    }
+
+    return Array.from(competitors.values())
+      .sort((a, b) => b.points - a.points || b.entries - a.entries || a.name.localeCompare(b.name))
+      .slice(0, 10);
+  }
+
   function categoriesFromText() {
     return Array.from(
       new Set(categoriesText.split(/\r?\n/).map((category) => category.trim()).filter(Boolean)),
@@ -558,6 +687,230 @@ function editEntry(entry: TournamentEntry) {
     }
 
     await loadTournaments(token);
+  }
+
+  function renderTournamentGroup(
+    tournament: Tournament,
+    tournamentEntries: TournamentEntry[],
+    competitors: number,
+    points: number,
+    index: number,
+  ) {
+    const controls = controlsForTournament(tournament.id);
+    const filterOptions = tournamentEntryFilterOptions(tournamentEntries);
+    const visibleEntries = filteredAndSortedEntries(tournament, tournamentEntries);
+    const stats = tournamentStats(tournamentEntries);
+    const categoryCounts = countBy(tournamentEntries.map((entry) => entry.category ?? "No category"));
+    const medalCounts = countBy(tournamentEntries.map((entry) => medalLabel(entry.medal)));
+    const schoolTotals = schoolFeeTotals(tournament, tournamentEntries);
+    const topRows = topCompetitors(tournamentEntries);
+
+    return (
+      <details className="tournament-group" key={tournament.id} open={index === 0}>
+        <summary>
+          <span>
+            <strong>{tournament.name}</strong>
+            <small>{formatTournamentDate(tournament.starts_at)} | {tournament.venue ?? "No venue"}</small>
+          </span>
+          <span className="tournament-summary-counts">
+            <b>{competitors}</b> competitors
+            <b>{tournamentEntries.length}</b> entries
+            <b>{points}</b> points
+            <b>{formatFee(schoolTotals.reduce((total, school) => total + school.total, 0))}</b> fees
+          </span>
+        </summary>
+
+        <section className="tournament-insights">
+          <div className="section-title" style={{ marginBottom: 12 }}>
+            <div>
+              <h3 style={{ marginTop: 0 }}>Tournament stats</h3>
+              <p>Totals, category spread, medal summary, and top competitors for this tournament.</p>
+            </div>
+            <button className="secondary-button compact" disabled={tournamentEntries.length === 0} onClick={() => exportEntriesCsv(tournament, tournamentEntries)} type="button">
+              Export entries
+            </button>
+          </div>
+          <dl className="tournament-mini-grid">
+            <div><dt>Competitors</dt><dd>{stats.competitors}</dd></div>
+            <div><dt>Entries</dt><dd>{stats.entries}</dd></div>
+            <div><dt>Results</dt><dd>{stats.results}</dd></div>
+            <div><dt>Points</dt><dd>{stats.points}</dd></div>
+            <div><dt>Male</dt><dd>{stats.male}</dd></div>
+            <div><dt>Female</dt><dd>{stats.female}</dd></div>
+            <div><dt>Special needs</dt><dd>{stats.specialNeeds}</dd></div>
+          </dl>
+
+          <div className="tournament-stat-columns">
+            <article>
+              <h4>Categories</h4>
+              <div className="stat-chip-list">
+                {Object.entries(categoryCounts).map(([label, count]) => <span key={label}>{label}: {count}</span>)}
+              </div>
+            </article>
+            <article>
+              <h4>Results</h4>
+              <div className="stat-chip-list">
+                {Object.entries(medalCounts).map(([label, count]) => <span key={label}>{label}: {count}</span>)}
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <section className="content-shell" style={{ margin: "14px 0" }}>
+          <h3 style={{ marginTop: 0 }}>Top 10 participants of the day</h3>
+          {topRows.length === 0 ? (
+            <p className="muted">No competitors recorded yet.</p>
+          ) : (
+            <div className="responsive-table">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Rank</th>
+                    <th>Student</th>
+                    <th>School</th>
+                    <th>Entries</th>
+                    <th>Results</th>
+                    <th>Points</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {topRows.map((row, rowIndex) => (
+                    <tr key={row.id}>
+                      <td>{rowIndex + 1}</td>
+                      <td>{row.name}</td>
+                      <td>{row.school}</td>
+                      <td>{row.entries}</td>
+                      <td>{row.results.length ? row.results.join(" | ") : "No result yet"}</td>
+                      <td>{row.points}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+
+        <section className="content-shell" style={{ margin: "14px 0" }}>
+          <h3 style={{ marginTop: 0 }}>School fee totals</h3>
+          {schoolTotals.length === 0 ? (
+            <p className="muted">No school entries yet.</p>
+          ) : (
+            <div className="responsive-table">
+              <table>
+                <thead>
+                  <tr>
+                    <th>School</th>
+                    <th>Students</th>
+                    <th>Entries</th>
+                    <th>Total fee</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {schoolTotals.map((school) => (
+                    <tr key={school.schoolId}>
+                      <td>{school.schoolName}</td>
+                      <td>{school.students}</td>
+                      <td>{school.entries}</td>
+                      <td>{formatFee(school.total)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+
+        {tournamentEntries.length === 0 ? (
+          <article className="empty-state">No results imported for this tournament yet.</article>
+        ) : (
+          <section className="content-shell" style={{ margin: "14px 0" }}>
+            <div className="tournament-table-controls">
+              <label>
+                Sort by
+                <select value={controls.sort} onChange={(event) => updateTournamentEntryControl(tournament.id, "sort", event.target.value)}>
+                  <option value="student">Student</option>
+                  <option value="school">School</option>
+                  <option value="result">Result</option>
+                  <option value="points">Points</option>
+                  <option value="category">Category</option>
+                  <option value="age">Age</option>
+                  <option value="rank">Rank</option>
+                </select>
+              </label>
+              <label>
+                School
+                <select value={controls.school} onChange={(event) => updateTournamentEntryControl(tournament.id, "school", event.target.value)}>
+                  <option value="">All schools</option>
+                  {filterOptions.schools.map((school) => <option key={school} value={school}>{school}</option>)}
+                </select>
+              </label>
+              <label>
+                Category
+                <select value={controls.category} onChange={(event) => updateTournamentEntryControl(tournament.id, "category", event.target.value)}>
+                  <option value="">All categories</option>
+                  {filterOptions.categories.map((category) => <option key={category} value={category}>{category}</option>)}
+                </select>
+              </label>
+              <label>
+                Result
+                <select value={controls.result} onChange={(event) => updateTournamentEntryControl(tournament.id, "result", event.target.value)}>
+                  <option value="">All results</option>
+                  {filterOptions.results.map((result) => <option key={result} value={result}>{result}</option>)}
+                </select>
+              </label>
+              <label>
+                Gender
+                <select value={controls.gender} onChange={(event) => updateTournamentEntryControl(tournament.id, "gender", event.target.value)}>
+                  <option value="">All genders</option>
+                  {filterOptions.genders.map((gender) => <option key={gender} value={gender}>{gender}</option>)}
+                </select>
+              </label>
+            </div>
+            <p className="small-note">Showing {visibleEntries.length} of {tournamentEntries.length} entries.</p>
+            <div className="responsive-table">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Student</th>
+                    <th>Age</th>
+                    <th>Gender</th>
+                    <th>Rank</th>
+                    <th>School</th>
+                    <th>Category</th>
+                    <th>Special needs</th>
+                    <th>Result</th>
+                    <th>Points</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {visibleEntries.map((entry) => (
+                    <tr key={entry.id}>
+                      <td>{studentName(entry)}</td>
+                      <td>{studentAgeForTournament(entry.students?.date_of_birth, tournament)}</td>
+                      <td>{formatGender(entry.students?.gender)}</td>
+                      <td>{entry.students?.belt_rank ?? "No rank"}</td>
+                      <td>{entry.schools?.name ?? "No school"}</td>
+                      <td>{entry.category ?? "No category"}</td>
+                      <td>{entry.special_needs ? "Yes" : "No"}</td>
+                      <td>{resultLabel(entry)}</td>
+                      <td>{entry.points ?? 0}</td>
+                      <td>
+                        <div className="row-actions">
+                          <button className="secondary-button compact" onClick={() => editEntry(entry)} type="button">Edit</button>
+                          <button className="danger-button compact" disabled={busy || (!entry.medal && !entry.result_label)} onClick={() => clearEntryResult(entry.id)} type="button">Clear result</button>
+                          <button className="danger-button compact" disabled={busy} onClick={() => deleteEntry(entry.id)} type="button">Delete</button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        )}
+      </details>
+    );
   }
 
   return (
@@ -816,103 +1169,9 @@ function editEntry(entry: TournamentEntry) {
         {tournamentGroups.length === 0 ? (
           <article className="empty-state">No tournaments recorded yet.</article>
         ) : (
-          tournamentGroups.map(({ tournament, entries: tournamentEntries, competitors, points }, index) => (
-            <details className="tournament-group" key={tournament.id} open={index === 0}>
-              <summary>
-                <span>
-                  <strong>{tournament.name}</strong>
-                  <small>{formatTournamentDate(tournament.starts_at)} | {tournament.venue ?? "No venue"}</small>
-                </span>
-                <span className="tournament-summary-counts">
-                  <b>{competitors}</b> competitors
-                  <b>{tournamentEntries.length}</b> entries
-                  <b>{points}</b> points
-                  <b>{formatFee(schoolFeeTotals(tournament, tournamentEntries).reduce((total, school) => total + school.total, 0))}</b> fees
-                </span>
-              </summary>
-              <section className="content-shell" style={{ margin: "14px 0" }}>
-                <div className="section-title" style={{ marginBottom: 12 }}>
-                  <div>
-                    <h3 style={{ marginTop: 0 }}>School fee totals</h3>
-                    <p>Fees grouped by school for this tournament.</p>
-                  </div>
-                  <button className="secondary-button compact" disabled={tournamentEntries.length === 0} onClick={() => exportEntriesCsv(tournament, tournamentEntries)} type="button">
-                    Export entries
-                  </button>
-                </div>
-                {schoolFeeTotals(tournament, tournamentEntries).length === 0 ? (
-                  <p className="muted">No school entries yet.</p>
-                ) : (
-                  <div className="responsive-table">
-                    <table>
-                      <thead>
-                        <tr>
-                          <th>School</th>
-                          <th>Students</th>
-                          <th>Entries</th>
-                          <th>Total fee</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {schoolFeeTotals(tournament, tournamentEntries).map((school) => (
-                          <tr key={school.schoolId}>
-                            <td>{school.schoolName}</td>
-                            <td>{school.students}</td>
-                            <td>{school.entries}</td>
-                            <td>{formatFee(school.total)}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </section>
-              {tournamentEntries.length === 0 ? (
-                <article className="empty-state">No results imported for this tournament yet.</article>
-              ) : (
-                <div className="responsive-table">
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>Student</th>
-                        <th>Age</th>
-                        <th>Gender</th>
-                        <th>Rank</th>
-                        <th>School</th>
-                        <th>Category</th>
-                        <th>Special needs</th>
-                        <th>Result</th>
-                        <th>Points</th>
-                        <th>Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {tournamentEntries.map((entry) => (
-                        <tr key={entry.id}>
-                          <td>{entry.students?.first_name} {entry.students?.last_name}</td>
-                          <td>{studentAgeForTournament(entry.students?.date_of_birth, tournament)}</td>
-                          <td>{formatGender(entry.students?.gender)}</td>
-                          <td>{entry.students?.belt_rank ?? "No rank"}</td>
-                          <td>{entry.schools?.name ?? "No school"}</td>
-                          <td>{entry.category ?? "No category"}</td>
-                          <td>{entry.special_needs ? "Yes" : "No"}</td>
-                          <td>{entry.result_label || entry.medal || "Entered"}</td>
-                          <td>{entry.points ?? 0}</td>
-                          <td>
-                            <div className="row-actions">
-                              <button className="secondary-button compact" onClick={() => editEntry(entry)} type="button">Edit</button>
-                              <button className="danger-button compact" disabled={busy || (!entry.medal && !entry.result_label)} onClick={() => clearEntryResult(entry.id)} type="button">Clear result</button>
-                              <button className="danger-button compact" disabled={busy} onClick={() => deleteEntry(entry.id)} type="button">Delete</button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </details>
-          ))
+          tournamentGroups.map(({ tournament, entries: tournamentEntries, competitors, points }, index) =>
+            renderTournamentGroup(tournament, tournamentEntries, competitors, points, index),
+          )
         )}
       </section>
     </main>

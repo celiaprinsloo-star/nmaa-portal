@@ -34,6 +34,22 @@ type CategoryResultDraft = {
   result_label: string;
 };
 
+type SchoolTournamentSortKey = "student" | "category" | "result" | "points" | "age" | "rank";
+
+type SchoolTournamentControls = {
+  sort: SchoolTournamentSortKey;
+  category: string;
+  result: string;
+  missingResults: boolean;
+};
+
+const defaultTournamentControls: SchoolTournamentControls = {
+  sort: "student",
+  category: "",
+  result: "",
+  missingResults: false,
+};
+
 const instructorRanks = [
   "Green Belt",
   "Purple Belt",
@@ -178,6 +194,7 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
   const [registrationForm, setRegistrationForm] = useState(emptyRegistration);
   const [registrationCategories, setRegistrationCategories] = useState<string[]>([]);
   const [editingRegistrationId, setEditingRegistrationId] = useState("");
+  const [tournamentControls, setTournamentControls] = useState<Record<string, SchoolTournamentControls>>({});
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [logoBusy, setLogoBusy] = useState(false);
@@ -836,6 +853,122 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
     return value.charAt(0).toUpperCase() + value.slice(1);
   }
 
+  function formatResult(value: string | null | undefined) {
+    if (!value) return "Pending result";
+    return value
+      .split(/[_\s-]+/)
+      .filter(Boolean)
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(" ");
+  }
+
+  function entryStudentName(entry: TournamentEntry) {
+    return `${entry.students?.first_name ?? ""} ${entry.students?.last_name ?? ""}`.trim() || "Unknown student";
+  }
+
+  function entryResultLabel(entry: TournamentEntry) {
+    return entry.result_label || formatResult(entry.medal);
+  }
+
+  function entryHasResult(entry: TournamentEntry) {
+    return Boolean(entry.medal || entry.result_label);
+  }
+
+  function controlsForTournament(tournamentId: string) {
+    return tournamentControls[tournamentId] ?? defaultTournamentControls;
+  }
+
+  function updateTournamentControl<K extends keyof SchoolTournamentControls>(
+    tournamentId: string,
+    key: K,
+    value: SchoolTournamentControls[K],
+  ) {
+    setTournamentControls((current) => ({
+      ...current,
+      [tournamentId]: {
+        ...defaultTournamentControls,
+        ...current[tournamentId],
+        [key]: value,
+      },
+    }));
+  }
+
+  function uniqueEntryValues(tournamentEntries: TournamentEntry[], selector: (entry: TournamentEntry) => string) {
+    return Array.from(new Set(tournamentEntries.map(selector).filter(Boolean))).sort((a, b) => a.localeCompare(b));
+  }
+
+  function countBy(tournamentEntries: TournamentEntry[], selector: (entry: TournamentEntry) => string) {
+    return tournamentEntries.reduce<Record<string, number>>((counts, entry) => {
+      const key = selector(entry);
+      counts[key] = (counts[key] ?? 0) + 1;
+      return counts;
+    }, {});
+  }
+
+  function sortedCountEntries(counts: Record<string, number>) {
+    return Object.entries(counts).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+  }
+
+  function filteredAndSortedEntries(tournament: Tournament, tournamentEntries: TournamentEntry[]) {
+    const controls = controlsForTournament(tournament.id);
+
+    return tournamentEntries
+      .filter((entry) => {
+        if (controls.missingResults && entryHasResult(entry)) return false;
+        if (controls.category && entry.category !== controls.category) return false;
+        if (controls.result && formatResult(entry.medal) !== controls.result) return false;
+        return true;
+      })
+      .sort((a, b) => {
+        if (controls.sort === "category") return (a.category ?? "").localeCompare(b.category ?? "");
+        if (controls.sort === "result") return entryResultLabel(a).localeCompare(entryResultLabel(b));
+        if (controls.sort === "points") return Number(b.points ?? 0) - Number(a.points ?? 0);
+        if (controls.sort === "age") {
+          return Number(studentAgeForTournament(b.students?.date_of_birth, tournament)) - Number(studentAgeForTournament(a.students?.date_of_birth, tournament));
+        }
+        if (controls.sort === "rank") return (a.students?.belt_rank ?? "").localeCompare(b.students?.belt_rank ?? "");
+        return entryStudentName(a).localeCompare(entryStudentName(b));
+      });
+  }
+
+  function tournamentStats(tournament: Tournament, tournamentEntries: TournamentEntry[]) {
+    const studentIds = new Set(tournamentEntries.map((entry) => entry.student_id).filter(Boolean));
+
+    return {
+      students: studentIds.size,
+      entries: tournamentEntries.length,
+      resulted: tournamentEntries.filter(entryHasResult).length,
+      missing: tournamentEntries.filter((entry) => !entryHasResult(entry)).length,
+      points: tournamentEntries.reduce((total, entry) => total + Number(entry.points ?? 0), 0),
+      specialNeeds: tournamentEntries.filter((entry) => entry.special_needs).length,
+      totalFees: totalFeeForEntries(tournament, tournamentEntries),
+    };
+  }
+
+  function topSchoolStudents(tournamentEntries: TournamentEntry[]) {
+    const grouped = tournamentEntries.reduce<
+      Record<string, { name: string; entries: number; points: number; results: Record<string, number> }>
+    >((studentsById, entry) => {
+      const key = entry.student_id || entryStudentName(entry);
+      const current = studentsById[key] ?? {
+        name: entryStudentName(entry),
+        entries: 0,
+        points: 0,
+        results: {},
+      };
+
+      current.entries += 1;
+      current.points += Number(entry.points ?? 0);
+      current.results[formatResult(entry.medal)] = (current.results[formatResult(entry.medal)] ?? 0) + 1;
+      studentsById[key] = current;
+      return studentsById;
+    }, {});
+
+    return Object.values(grouped)
+      .sort((a, b) => b.points - a.points || b.entries - a.entries || a.name.localeCompare(b.name))
+      .slice(0, 10);
+  }
+
   function tournamentCategoryList(tournamentId: string) {
     const tournament = tournaments.find((item) => item.id === tournamentId);
     return tournament?.tournament_categories?.length ? tournament.tournament_categories : [...tournamentCategories];
@@ -936,6 +1069,196 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
       };
     })
     .filter((group) => group.entries.length > 0);
+
+  function renderSchoolTournamentPanel(
+    tournament: Tournament,
+    tournamentEntries: TournamentEntry[],
+    index: number,
+    mode: "results" | "registrations",
+  ) {
+    const controls = controlsForTournament(tournament.id);
+    const visibleEntries = filteredAndSortedEntries(tournament, tournamentEntries);
+    const stats = tournamentStats(tournament, tournamentEntries);
+    const visibleStats = tournamentStats(tournament, visibleEntries);
+    const categoryOptions = uniqueEntryValues(tournamentEntries, (entry) => entry.category ?? "");
+    const resultOptions = uniqueEntryValues(tournamentEntries, (entry) => formatResult(entry.medal));
+    const categoryCounts = sortedCountEntries(countBy(tournamentEntries, (entry) => entry.category ?? "No category"));
+    const resultCounts = sortedCountEntries(countBy(tournamentEntries, (entry) => formatResult(entry.medal)));
+    const topStudents = topSchoolStudents(tournamentEntries);
+    const showRegistrationActions = mode === "registrations";
+
+    return (
+      <details className="tournament-group" key={tournament.id} open={index === 0}>
+        <summary>
+          <span>
+            <strong>{tournament.name}</strong>
+            <small>{formatTournamentDate(tournament.starts_at)} | {tournament.venue ?? "No venue"}</small>
+          </span>
+          <span className="tournament-summary-counts">
+            <b>{stats.students}</b> students
+            <b>{stats.entries}</b> entries
+            <b>{stats.points}</b> points
+            {mode === "registrations" ? <b>{formatFee(stats.totalFees)}</b> : null}
+          </span>
+        </summary>
+
+        <div className="tournament-insights">
+          <dl className="tournament-mini-grid">
+            <div><dt>Students</dt><dd>{stats.students}</dd></div>
+            <div><dt>Entries</dt><dd>{stats.entries}</dd></div>
+            <div><dt>Results captured</dt><dd>{stats.resulted}</dd></div>
+            <div><dt>Missing results</dt><dd>{stats.missing}</dd></div>
+            <div><dt>Points</dt><dd>{stats.points}</dd></div>
+            <div><dt>Special needs</dt><dd>{stats.specialNeeds}</dd></div>
+            {mode === "registrations" ? <div><dt>Total fees</dt><dd>{formatFee(stats.totalFees)}</dd></div> : null}
+          </dl>
+
+          <div className="tournament-stat-columns">
+            <article>
+              <h4>Categories</h4>
+              <div className="stat-chip-list">
+                {categoryCounts.map(([category, count]) => <span key={category}>{category}: {count}</span>)}
+              </div>
+            </article>
+            <article>
+              <h4>Results</h4>
+              <div className="stat-chip-list">
+                {resultCounts.map(([result, count]) => <span key={result}>{result}: {count}</span>)}
+              </div>
+            </article>
+          </div>
+
+          <article className="tournament-top-list">
+            <h4>Top students from your school</h4>
+            {topStudents.length === 0 ? (
+              <p className="muted">No student entries yet.</p>
+            ) : (
+              <div className="responsive-table compact-table">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Student</th>
+                      <th>Entries</th>
+                      <th>Points</th>
+                      <th>Results</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {topStudents.map((student) => (
+                      <tr key={student.name}>
+                        <td>{student.name}</td>
+                        <td>{student.entries}</td>
+                        <td>{student.points}</td>
+                        <td>{sortedCountEntries(student.results).map(([result, count]) => `${result}: ${count}`).join(" | ")}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </article>
+
+          <div className="tournament-table-controls">
+            <label>
+              Sort by
+              <select
+                value={controls.sort}
+                onChange={(event) => updateTournamentControl(tournament.id, "sort", event.target.value as SchoolTournamentSortKey)}
+              >
+                <option value="student">Student</option>
+                <option value="category">Category</option>
+                <option value="result">Result</option>
+                <option value="points">Points</option>
+                <option value="age">Age</option>
+                <option value="rank">Rank</option>
+              </select>
+            </label>
+            <label>
+              Category
+              <select value={controls.category} onChange={(event) => updateTournamentControl(tournament.id, "category", event.target.value)}>
+                <option value="">All categories</option>
+                {categoryOptions.map((category) => <option key={category} value={category}>{category}</option>)}
+              </select>
+            </label>
+            <label>
+              Result
+              <select value={controls.result} onChange={(event) => updateTournamentControl(tournament.id, "result", event.target.value)}>
+                <option value="">All results</option>
+                {resultOptions.map((result) => <option key={result} value={result}>{result}</option>)}
+              </select>
+            </label>
+            <label className="checkbox-label tournament-filter-check">
+              <input
+                checked={controls.missingResults}
+                onChange={(event) => updateTournamentControl(tournament.id, "missingResults", event.target.checked)}
+                type="checkbox"
+              />
+              Missing results only
+            </label>
+            <button className="secondary-button compact" disabled={visibleEntries.length === 0} onClick={() => exportEntriesCsv(tournament, visibleEntries)} type="button">
+              Export shown entries
+            </button>
+          </div>
+          <p className="small-note">Showing {visibleEntries.length} of {tournamentEntries.length} entries. Visible total fees: {formatFee(visibleStats.totalFees)}.</p>
+        </div>
+
+        <div className="responsive-table">
+          <table>
+            <thead>
+              <tr>
+                <th>Student</th>
+                <th>Age</th>
+                <th>Gender</th>
+                <th>Rank</th>
+                <th>Category</th>
+                <th>Special needs</th>
+                {showRegistrationActions ? <th>Status</th> : null}
+                <th>Result</th>
+                <th>Points</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {visibleEntries.length === 0 ? (
+                <tr>
+                  <td colSpan={showRegistrationActions ? 10 : 9}>No entries match the current filters.</td>
+                </tr>
+              ) : (
+                visibleEntries.map((entry) => (
+                  <tr key={entry.id}>
+                    <td>{entryStudentName(entry)}</td>
+                    <td>{studentAgeForTournament(entry.students?.date_of_birth, tournament)}</td>
+                    <td>{formatGender(entry.students?.gender)}</td>
+                    <td>{entry.students?.belt_rank ?? "No rank"}</td>
+                    <td>{entry.category ?? "No category"}</td>
+                    <td>{entry.special_needs ? "Yes" : "No"}</td>
+                    {showRegistrationActions ? <td>{entry.status}</td> : null}
+                    <td>{entryHasResult(entry) ? entryResultLabel(entry) : "Pending result"}</td>
+                    <td>{entry.points ?? 0}</td>
+                    <td>
+                      <div className="row-actions">
+                        {showRegistrationActions ? (
+                          <>
+                            <button className="secondary-button compact" onClick={() => editRegistration(entry)} type="button">Edit</button>
+                            <button className="danger-button compact" disabled={busy} onClick={() => deleteRegistration(entry.id)} type="button">Delete</button>
+                          </>
+                        ) : (
+                          <>
+                            <button className="secondary-button compact" onClick={() => editResult(entry)} type="button">Edit</button>
+                            <button className="danger-button compact" disabled={busy || !entryHasResult(entry)} onClick={() => clearResult(entry.id)} type="button">Clear result</button>
+                          </>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </details>
+    );
+  }
 
   function studentAgeGroupHref(ageGroup: string) {
     const schoolParam = school?.id ? `school_id=${school.id}&` : "";
@@ -1227,55 +1550,9 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
           {resultGroups.length === 0 ? (
             <article className="empty-state">No tournament results recorded for your school yet.</article>
           ) : (
-            resultGroups.map(({ tournament, entries: tournamentEntries, points }, index) => (
-              <details className="tournament-group" key={tournament.id} open={index === 0}>
-                <summary>
-                  <span>
-                    <strong>{tournament.name}</strong>
-                    <small>{formatTournamentDate(tournament.starts_at)} | {tournament.venue ?? "No venue"}</small>
-                  </span>
-                  <span className="tournament-summary-counts">
-                    <b>{tournamentEntries.length}</b> entries
-                    <b>{points}</b> points
-                  </span>
-                </summary>
-                <div className="responsive-table">
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>Student</th>
-                        <th>Age</th>
-                        <th>Gender</th>
-                        <th>Rank</th>
-                        <th>Category</th>
-                        <th>Result</th>
-                        <th>Points</th>
-                        <th>Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {tournamentEntries.map((entry) => (
-                        <tr key={entry.id}>
-                          <td>{entry.students?.first_name} {entry.students?.last_name}</td>
-                          <td>{studentAgeForTournament(entry.students?.date_of_birth, tournament)}</td>
-                          <td>{formatGender(entry.students?.gender)}</td>
-                          <td>{entry.students?.belt_rank ?? "No rank"}</td>
-                          <td>{entry.category ?? "No category"}</td>
-                          <td>{entry.result_label || entry.medal || "Entered"}</td>
-                          <td>{entry.points ?? 0}</td>
-                          <td>
-                            <div className="row-actions">
-                              <button className="secondary-button compact" onClick={() => editResult(entry)} type="button">Edit</button>
-                              <button className="danger-button compact" disabled={busy || (!entry.medal && !entry.result_label)} onClick={() => clearResult(entry.id)} type="button">Clear result</button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </details>
-            ))
+            resultGroups.map(({ tournament, entries: tournamentEntries }, index) =>
+              renderSchoolTournamentPanel(tournament, tournamentEntries, index, "results"),
+            )
           )}
         </section>
       </main>
@@ -1372,62 +1649,9 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
           {registrationGroups.length === 0 ? (
             <article className="empty-state">No tournament registrations recorded for your school yet.</article>
           ) : (
-            registrationGroups.map(({ tournament, entries: tournamentEntries }, index) => (
-              <details className="tournament-group" key={tournament.id} open={index === 0}>
-                <summary>
-                  <span>
-                    <strong>{tournament.name}</strong>
-                    <small>{formatTournamentDate(tournament.starts_at)} | {tournament.venue ?? "No venue"}</small>
-                  </span>
-                  <span className="tournament-summary-counts">
-                    <b>{tournamentEntries.length}</b> registrations
-                    <b>{formatFee(totalFeeForEntries(tournament, tournamentEntries))}</b> total fees
-                  </span>
-                </summary>
-                <div className="row-actions" style={{ margin: "14px 0" }}>
-                  <button className="secondary-button compact" disabled={tournamentEntries.length === 0} onClick={() => exportEntriesCsv(tournament, tournamentEntries)} type="button">
-                    Export entries
-                  </button>
-                </div>
-                <div className="responsive-table">
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>Student</th>
-                        <th>Age</th>
-                        <th>Gender</th>
-                        <th>Rank</th>
-                        <th>Category</th>
-                        <th>Special needs</th>
-                        <th>Status</th>
-                        <th>Result</th>
-                        <th>Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {tournamentEntries.map((entry) => (
-                        <tr key={entry.id}>
-                          <td>{entry.students?.first_name} {entry.students?.last_name}</td>
-                          <td>{studentAgeForTournament(entry.students?.date_of_birth, tournament)}</td>
-                          <td>{formatGender(entry.students?.gender)}</td>
-                          <td>{entry.students?.belt_rank ?? "No rank"}</td>
-                          <td>{entry.category ?? "No category"}</td>
-                          <td>{entry.special_needs ? "Yes" : "No"}</td>
-                          <td>{entry.status}</td>
-                          <td>{entry.medal ? `${entry.medal} (${entry.points ?? 0} pts)` : "Pending result"}</td>
-                          <td>
-                            <div className="row-actions">
-                              <button className="secondary-button compact" onClick={() => editRegistration(entry)} type="button">Edit</button>
-                              <button className="danger-button compact" disabled={busy} onClick={() => deleteRegistration(entry.id)} type="button">Delete</button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </details>
-            ))
+            registrationGroups.map(({ tournament, entries: tournamentEntries }, index) =>
+              renderSchoolTournamentPanel(tournament, tournamentEntries, index, "registrations"),
+            )
           )}
         </section>
       </main>
