@@ -53,6 +53,15 @@ type LeaderboardRow = {
   entries: number;
 };
 
+type TournamentSchoolFeePayment = {
+  id: string;
+  tournament_id: string;
+  school_id: string;
+  status: "outstanding" | "paid";
+  amount_zar: number | null;
+  paid_at: string | null;
+};
+
 type CategoryResultDraft = {
   medal: string;
   result_label: string;
@@ -75,6 +84,7 @@ export default function TournamentsClient() {
   const [provinces, setProvinces] = useState<Province[]>([]);
   const [students, setStudents] = useState<StudentOption[]>([]);
   const [leaderboard, setLeaderboard] = useState<LeaderboardRow[]>([]);
+  const [feePayments, setFeePayments] = useState<TournamentSchoolFeePayment[]>([]);
   const [tournamentForm, setTournamentForm] = useState(emptyTournament);
   const [feeForm, setFeeForm] = useState(emptyFeeStructure);
   const [categoriesText, setCategoriesText] = useState(defaultCategoriesText);
@@ -103,6 +113,7 @@ export default function TournamentsClient() {
     setProvinces(payload.provinces);
     setStudents(payload.students);
     setLeaderboard(payload.leaderboard ?? []);
+    setFeePayments(payload.feePayments ?? []);
     setTournamentForm((current) => ({
       ...current,
       province_id: current.province_id || payload.provinces[0]?.id || "",
@@ -542,14 +553,44 @@ function editEntry(entry: TournamentEntry) {
     }
 
     return Array.from(schoolStudents.entries())
-      .map(([schoolId, total]) => ({
-        schoolId,
-        schoolName: total.schoolName,
-        students: total.students.size,
-        entries: Array.from(total.students.values()).reduce((sum, count) => sum + count, 0),
-        total: Array.from(total.students.values()).reduce((sum, count) => sum + feeForStudentEntries(tournament, count), 0),
-      }))
+      .map(([schoolId, total]) => {
+        const payment = feePayments.find((item) => item.tournament_id === tournament.id && item.school_id === schoolId);
+        return {
+          schoolId,
+          schoolName: total.schoolName,
+          students: total.students.size,
+          entries: Array.from(total.students.values()).reduce((sum, count) => sum + count, 0),
+          total: Array.from(total.students.values()).reduce((sum, count) => sum + feeForStudentEntries(tournament, count), 0),
+          paymentStatus: payment?.status ?? "outstanding",
+          paidAt: payment?.paid_at ?? null,
+        };
+      })
       .sort((a, b) => b.total - a.total || a.schoolName.localeCompare(b.schoolName));
+  }
+
+  async function markTournamentSchoolFeePaid(tournamentId: string, schoolId: string, amountZar: number) {
+    setBusy(true);
+    setError("");
+
+    const response = await fetch("/api/admin/tournament-school-fees", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        tournament_id: tournamentId,
+        school_id: schoolId,
+        status: "paid",
+        amount_zar: amountZar,
+      }),
+    });
+    const payload = await response.json().catch(() => ({}));
+    setBusy(false);
+
+    if (!response.ok) {
+      setError(payload.error ?? "Unable to mark tournament fee as paid.");
+      return;
+    }
+
+    await loadTournaments(token);
   }
 
   const tournamentGroups = tournaments.map((tournament) => {
@@ -823,6 +864,8 @@ function editEntry(entry: TournamentEntry) {
                     <th>Students</th>
                     <th>Entries</th>
                     <th>Total fee</th>
+                    <th>Payment</th>
+                    <th>Action</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -832,6 +875,27 @@ function editEntry(entry: TournamentEntry) {
                       <td>{school.students}</td>
                       <td>{school.entries}</td>
                       <td>{formatFee(school.total)}</td>
+                      <td>
+                        <span className={`status-pill status-${school.paymentStatus}`}>
+                          {school.paymentStatus}
+                        </span>
+                      </td>
+                      <td>
+                        {school.paymentStatus === "paid" ? (
+                          <span className="small-note">
+                            {school.paidAt ? `Paid ${new Date(school.paidAt).toLocaleDateString()}` : "Paid"}
+                          </span>
+                        ) : (
+                          <button
+                            className="primary-button compact"
+                            disabled={busy}
+                            onClick={() => markTournamentSchoolFeePaid(tournament.id, school.schoolId, school.total)}
+                            type="button"
+                          >
+                            Mark paid
+                          </button>
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>

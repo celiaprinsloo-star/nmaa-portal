@@ -39,7 +39,7 @@ export async function GET(request: Request) {
   }
 
   const supabase = createSupabaseAdminClient();
-  const [tournamentsResult, entriesResult, provincesResult, studentsResult] = await Promise.all([
+  const [tournamentsResult, entriesResult, provincesResult, studentsResult, feePaymentsResult] = await Promise.all([
     supabase
       .from("tournaments")
       .select("id,province_id,name,venue,starts_at,ends_at,registration_closes_at,age_calculation_basis,fee_structure,tournament_categories,provinces(name,code)")
@@ -53,6 +53,9 @@ export async function GET(request: Request) {
       .from("students")
       .select("id,school_id,first_name,last_name,belt_rank,schools(name)")
       .order("last_name"),
+    supabase
+      .from("tournament_school_fee_payments")
+      .select("id,tournament_id,school_id,status,amount_zar,paid_at,marked_by"),
   ]);
 
   if (tournamentsResult.error) {
@@ -69,6 +72,10 @@ export async function GET(request: Request) {
 
   if (studentsResult.error) {
     return Response.json({ error: studentsResult.error.message }, { status: 400 });
+  }
+
+  if (feePaymentsResult.error && feePaymentsResult.error.code !== "42P01") {
+    return Response.json({ error: feePaymentsResult.error.message }, { status: 400 });
   }
 
   const leaderboardMap = new Map<
@@ -120,6 +127,7 @@ export async function GET(request: Request) {
     entries: entriesResult.data,
     provinces: provincesResult.data,
     students: studentsResult.data,
+    feePayments: feePaymentsResult.data ?? [],
     leaderboard,
   });
 }
