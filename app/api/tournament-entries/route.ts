@@ -51,20 +51,35 @@ export async function GET(request: Request) {
     studentsQuery.eq("school_id", "00000000-0000-0000-0000-000000000000");
   }
 
-  const [entriesResult, studentsResult, tournamentsResult] = await Promise.all([
+  const feePaymentsQuery = supabase
+    .from("tournament_school_fee_payments")
+    .select("id,tournament_id,school_id,status,amount_zar,paid_at");
+
+  if (schoolIds.length > 0) {
+    feePaymentsQuery.in("school_id", schoolIds);
+  } else {
+    feePaymentsQuery.eq("school_id", "00000000-0000-0000-0000-000000000000");
+  }
+
+  const [entriesResult, studentsResult, tournamentsResult, feePaymentsResult] = await Promise.all([
     entriesQuery,
     studentsQuery,
     tournamentsQuery,
+    feePaymentsQuery,
   ]);
 
   if (entriesResult.error) return Response.json({ error: entriesResult.error.message }, { status: 400 });
   if (studentsResult.error) return Response.json({ error: studentsResult.error.message }, { status: 400 });
   if (tournamentsResult.error) return Response.json({ error: tournamentsResult.error.message }, { status: 400 });
+  if (feePaymentsResult.error && feePaymentsResult.error.code !== "42P01") {
+    return Response.json({ error: feePaymentsResult.error.message }, { status: 400 });
+  }
 
   return Response.json({
     entries: entriesResult.data,
     students: studentsResult.data,
     tournaments: tournamentsResult.data,
+    feePayments: feePaymentsResult.data ?? [],
   });
 }
 

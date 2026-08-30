@@ -16,6 +16,7 @@ import type {
   Student,
   Tournament,
   TournamentEntry,
+  TournamentSchoolFeePayment,
 } from "@/lib/types";
 
 type BasicInstructor = Pick<Instructor, "id" | "school_id" | "full_name">;
@@ -188,6 +189,7 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
   const [schoolStudents, setSchoolStudents] = useState<Student[]>([]);
   const [entries, setEntries] = useState<TournamentEntry[]>([]);
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
+  const [feePayments, setFeePayments] = useState<TournamentSchoolFeePayment[]>([]);
   const [students, setStudents] = useState<StudentOption[]>([]);
   const [resultForm, setResultForm] = useState(emptyResult);
   const [resultCategories, setResultCategories] = useState<string[]>([]);
@@ -273,6 +275,7 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
     setDocumentInstructors(documentsPayload.payload.instructors);
     setEntries(resultsPayload.payload.entries);
     setTournaments(resultsPayload.payload.tournaments);
+    setFeePayments(resultsPayload.payload.feePayments ?? []);
     setStudents(resultsPayload.payload.students);
     setSchoolStudents(studentsPayload.payload.students);
     setInstructorForm((current) => ({ ...current, school_id: activeSchool.id }));
@@ -1020,6 +1023,11 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
     return Object.values(entriesByStudent).reduce((total, entryCount) => total + feeForStudentEntries(tournament, entryCount), 0);
   }
 
+  function feePaymentForTournament(tournamentId: string, schoolId: string | null | undefined) {
+    if (!schoolId) return null;
+    return feePayments.find((payment) => payment.tournament_id === tournamentId && payment.school_id === schoolId) ?? null;
+  }
+
   function exportEntriesCsv(tournament: Tournament | null, tournamentEntries: TournamentEntry[]) {
     const rows = [
       ["Tournament", "Date", "Venue", "Student", "Age", "Gender", "Rank", "Category", "Special needs", "Status", "Result", "Points"],
@@ -1092,6 +1100,8 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
     const visibleEntries = filteredAndSortedEntries(tournament, tournamentEntries);
     const stats = tournamentStats(tournament, tournamentEntries);
     const visibleStats = tournamentStats(tournament, visibleEntries);
+    const feePayment = feePaymentForTournament(tournament.id, school?.id);
+    const feePaymentStatus = feePayment?.status ?? "outstanding";
     const categoryOptions = uniqueEntryValues(tournamentEntries, (entry) => entry.category ?? "");
     const resultOptions = uniqueEntryValues(tournamentEntries, (entry) => formatResult(entry.medal));
     const categoryCounts = sortedCountEntries(countBy(tournamentEntries, (entry) => entry.category ?? "No category"));
@@ -1111,6 +1121,7 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
             <b>{stats.entries}</b> entries
             <b>{stats.points}</b> points
             {mode === "registrations" ? <b>{formatFee(stats.totalFees)}</b> : null}
+            {mode === "registrations" ? <span className={`status-pill status-${feePaymentStatus}`}>{feePaymentStatus}</span> : null}
           </span>
         </summary>
 
@@ -1123,6 +1134,14 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
             <div><dt>Points</dt><dd>{stats.points}</dd></div>
             <div><dt>Special needs</dt><dd>{stats.specialNeeds}</dd></div>
             {mode === "registrations" ? <div><dt>Total fees</dt><dd>{formatFee(stats.totalFees)}</dd></div> : null}
+            {mode === "registrations" ? (
+              <div>
+                <dt>Payment</dt>
+                <dd>
+                  <span className={`status-pill status-${feePaymentStatus}`}>{feePaymentStatus}</span>
+                </dd>
+              </div>
+            ) : null}
           </dl>
 
           <div className="tournament-stat-columns">

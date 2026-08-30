@@ -122,6 +122,15 @@ export type TournamentEntry = {
   tournaments?: Pick<Tournament, "name"> | null;
 };
 
+export type TournamentSchoolFeePayment = {
+  id: string;
+  tournament_id: string;
+  school_id: string;
+  status: "outstanding" | "paid";
+  amount_zar: number | null;
+  paid_at: string | null;
+};
+
 export type Event = {
   id: string;
   province_id: string | null;
