@@ -52,6 +52,11 @@ type LeaderboardRow = {
   entries: number;
 };
 
+type CategoryResultDraft = {
+  medal: string;
+  result_label: string;
+};
+
 export default function TournamentsClient() {
   const [token, setToken] = useState("");
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
@@ -64,6 +69,7 @@ export default function TournamentsClient() {
   const [categoriesText, setCategoriesText] = useState(defaultCategoriesText);
   const [entryForm, setEntryForm] = useState(emptyEntry);
   const [entryCategories, setEntryCategories] = useState<string[]>([]);
+  const [entryCategoryDrafts, setEntryCategoryDrafts] = useState<Record<string, CategoryResultDraft>>({});
   const [editingTournamentId, setEditingTournamentId] = useState("");
   const [editingEntryId, setEditingEntryId] = useState("");
   const [error, setError] = useState("");
@@ -127,6 +133,7 @@ export default function TournamentsClient() {
   function updateEntryField(field: keyof typeof emptyEntry, value: string) {
     if (field === "tournament_id") {
       setEntryCategories([]);
+      setEntryCategoryDrafts({});
       setEntryForm((current) => ({ ...current, tournament_id: value, category: "" }));
       return;
     }
@@ -134,6 +141,7 @@ export default function TournamentsClient() {
     if (field === "student_id") {
       const selectedStudent = students.find((student) => student.id === value);
       setEntryCategories([]);
+      setEntryCategoryDrafts({});
       setEntryForm((current) => ({
         ...current,
         student_id: value,
@@ -149,9 +157,32 @@ export default function TournamentsClient() {
     setEntryCategories((current) =>
       checked ? [...new Set([...current, category])] : current.filter((item) => item !== category),
     );
+    setEntryCategoryDrafts((current) => {
+      if (checked) {
+        return {
+          ...current,
+          [category]: current[category] ?? { medal: entryForm.medal, result_label: entryForm.result_label },
+        };
+      }
+
+      const remaining = { ...current };
+      delete remaining[category];
+      return remaining;
+    });
     setEntryForm((current) => ({
       ...current,
       category: checked ? category : current.category === category ? "" : current.category,
+    }));
+  }
+
+  function updateEntryCategoryDraft(category: string, field: keyof CategoryResultDraft, value: string) {
+    setEntryCategoryDrafts((current) => ({
+      ...current,
+      [category]: {
+        medal: current[category]?.medal ?? entryForm.medal,
+        result_label: current[category]?.result_label ?? "",
+        [field]: value,
+      },
     }));
   }
 
@@ -165,6 +196,7 @@ export default function TournamentsClient() {
   function resetEntryForm() {
     setEditingEntryId("");
     setEntryCategories([]);
+    setEntryCategoryDrafts({});
     setEntryForm({
       ...emptyEntry,
       tournament_id: tournaments[0]?.id || "",
@@ -196,6 +228,7 @@ export default function TournamentsClient() {
 function editEntry(entry: TournamentEntry) {
     setEditingEntryId(entry.id);
     setEntryCategories([]);
+    setEntryCategoryDrafts({});
     setEntryForm({
       tournament_id: entry.tournament_id,
       student_id: entry.student_id,
@@ -440,6 +473,10 @@ function editEntry(entry: TournamentEntry) {
 
     const responses = await Promise.all(
       categoriesToSave.map(async (category) => {
+        const categoryDraft = entryCategoryDrafts[category] ?? {
+          medal: entryForm.medal,
+          result_label: entryForm.result_label,
+        };
         const response = await fetch(
           editingEntryId ? `/api/admin/tournament-entries/${editingEntryId}` : "/api/admin/tournament-entries",
           {
@@ -448,7 +485,12 @@ function editEntry(entry: TournamentEntry) {
               Authorization: `Bearer ${token}`,
               "Content-Type": "application/json",
             },
-            body: JSON.stringify({ ...entryForm, category }),
+            body: JSON.stringify({
+              ...entryForm,
+              category,
+              medal: categoryDraft.medal,
+              result_label: categoryDraft.result_label,
+            }),
           },
         );
         return { ok: response.ok, payload: await response.json().catch(() => ({})) };
@@ -651,34 +693,62 @@ function editEntry(entry: TournamentEntry) {
           ) : (
             <fieldset style={{ border: "1px solid #d9dee7", borderRadius: 8, display: "grid", gap: 12, gridColumn: "1 / -1", padding: 16 }}>
               <legend style={{ fontWeight: 800, padding: "0 6px" }}>Result categories</legend>
-              <div style={{ display: "grid", gap: 10, gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}>
-                {tournamentCategoryList(entryForm.tournament_id).map((category) => (
-                  <label className="checkbox-label" key={category} style={{ border: "1px solid #d9dee7", borderRadius: 8, padding: 10 }}>
-                    <input
-                      checked={entryCategories.includes(category)}
-                      onChange={(event) => toggleEntryCategory(category, event.target.checked)}
-                      type="checkbox"
-                    />
-                    {category}
-                  </label>
-                ))}
+              <div style={{ display: "grid", gap: 10, gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))" }}>
+                {tournamentCategoryList(entryForm.tournament_id).map((category) => {
+                  const isSelected = entryCategories.includes(category);
+                  const draft = entryCategoryDrafts[category] ?? { medal: entryForm.medal, result_label: entryForm.result_label };
+
+                  return (
+                    <div key={category} style={{ border: "1px solid #d9dee7", borderRadius: 8, display: "grid", gap: 10, padding: 10 }}>
+                      <label className="checkbox-label">
+                        <input
+                          checked={isSelected}
+                          onChange={(event) => toggleEntryCategory(category, event.target.checked)}
+                          type="checkbox"
+                        />
+                        {category}
+                      </label>
+                      {isSelected ? (
+                        <>
+                          <label>
+                            Result
+                            <select value={draft.medal} onChange={(event) => updateEntryCategoryDraft(category, "medal", event.target.value)}>
+                              {tournamentResults.map((result) => (
+                                <option key={result} value={result}>{result}</option>
+                              ))}
+                            </select>
+                          </label>
+                          <label>
+                            Result note
+                            <input value={draft.result_label} onChange={(event) => updateEntryCategoryDraft(category, "result_label", event.target.value)} />
+                          </label>
+                          <p className="small-note">Points: {tournamentPointsForResult(draft.medal) ?? 0}</p>
+                        </>
+                      ) : null}
+                    </div>
+                  );
+                })}
               </div>
             </fieldset>
           )}
           <label className="checkbox-label"><input checked={entryForm.special_needs} onChange={(event) => setEntryForm((current) => ({ ...current, special_needs: event.target.checked }))} type="checkbox" /> Special needs</label>
-          <label>
-            Result
-            <select value={entryForm.medal} onChange={(event) => updateEntryField("medal", event.target.value)}>
-              {tournamentResults.map((result) => (
-                <option key={result} value={result}>{result}</option>
-              ))}
-            </select>
-          </label>
-          <p className="small-note">Points will be calculated automatically: {tournamentPointsForResult(entryForm.medal) ?? 0} points.</p>
-          <label>
-            Result note
-            <input value={entryForm.result_label} onChange={(event) => updateEntryField("result_label", event.target.value)} />
-          </label>
+          {editingEntryId ? (
+            <>
+              <label>
+                Result
+                <select value={entryForm.medal} onChange={(event) => updateEntryField("medal", event.target.value)}>
+                  {tournamentResults.map((result) => (
+                    <option key={result} value={result}>{result}</option>
+                  ))}
+                </select>
+              </label>
+              <p className="small-note">Points will be calculated automatically: {tournamentPointsForResult(entryForm.medal) ?? 0} points.</p>
+              <label>
+                Result note
+                <input value={entryForm.result_label} onChange={(event) => updateEntryField("result_label", event.target.value)} />
+              </label>
+            </>
+          ) : null}
           <button className="primary-button compact" disabled={busy || tournaments.length === 0 || students.length === 0 || (!editingEntryId && entryCategories.length === 0)} type="submit">
             {editingEntryId ? "Save result" : "Add selected results"}
           </button>
