@@ -50,6 +50,8 @@ const defaultTournamentControls: SchoolTournamentControls = {
   missingResults: false,
 };
 
+const medalDisplayOrder = ["Gold", "Silver", "Bronze", "Participation", "Pending result"];
+
 const instructorRanks = [
   "Green Belt",
   "Purple Belt",
@@ -909,6 +911,16 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
     return Object.entries(counts).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
   }
 
+  function sortedMedalCountEntries(counts: Record<string, number>) {
+    return Object.entries(counts).sort((a, b) => {
+      const aIndex = medalDisplayOrder.indexOf(a[0]);
+      const bIndex = medalDisplayOrder.indexOf(b[0]);
+      const safeAIndex = aIndex === -1 ? medalDisplayOrder.length : aIndex;
+      const safeBIndex = bIndex === -1 ? medalDisplayOrder.length : bIndex;
+      return safeAIndex - safeBIndex || a[0].localeCompare(b[0]);
+    });
+  }
+
   function filteredAndSortedEntries(tournament: Tournament, tournamentEntries: TournamentEntry[]) {
     const controls = controlsForTournament(tournament.id);
 
@@ -1114,16 +1126,21 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
           </dl>
 
           <div className="tournament-stat-columns">
-            <article>
+            <article className="stat-breakdown-card">
               <h4>Categories</h4>
               <div className="stat-chip-list">
                 {categoryCounts.map(([category, count]) => <span key={category}>{category}: {count}</span>)}
               </div>
             </article>
-            <article>
+            <article className="stat-breakdown-card">
               <h4>Results</h4>
-              <div className="stat-chip-list">
-                {resultCounts.map(([result, count]) => <span key={result}>{result}: {count}</span>)}
+              <div className="result-chip-list">
+                {sortedMedalCountEntries(Object.fromEntries(resultCounts)).map(([result, count]) => (
+                  <span className={`result-chip result-${result.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`} key={result}>
+                    <b>{count}</b>
+                    {result}
+                  </span>
+                ))}
               </div>
             </article>
           </div>
@@ -1149,7 +1166,11 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
                         <td>{student.name}</td>
                         <td>{student.entries}</td>
                         <td>{student.points}</td>
-                        <td>{sortedCountEntries(student.results).map(([result, count]) => `${result}: ${count}`).join(" | ")}</td>
+                        <td>
+                          <div className="inline-result-list">
+                            {sortedMedalCountEntries(student.results).map(([result, count]) => <span key={result}>{result}: {count}</span>)}
+                          </div>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -1482,65 +1503,71 @@ export default function SchoolClient({ section = "overview" }: SchoolClientProps
           )}
         </section>
 
-        <section className="section-title">
-          <h2>{editingResultId ? "Edit result" : "Add result"}</h2>
-          <p>Select a tournament and student, then record the category and result.</p>
-        </section>
-        <form className="admin-form content-shell" onSubmit={saveResult}>
-          <label>Tournament<select value={resultForm.tournament_id} onChange={(event) => updateResultField("tournament_id", event.target.value)} required>{tournaments.map((tournament) => <option key={tournament.id} value={tournament.id}>{tournament.name}</option>)}</select></label>
-          <label>Student<select value={resultForm.student_id} onChange={(event) => updateResultField("student_id", event.target.value)} required>{students.map((student) => <option key={student.id} value={student.id}>{student.first_name} {student.last_name}</option>)}</select></label>
-          {editingResultId ? (
-            <label>Category<select value={resultForm.category} onChange={(event) => updateResultField("category", event.target.value)} required><option value="">Select category</option>{tournamentCategoryList(resultForm.tournament_id).map((category) => <option key={category} value={category}>{category}</option>)}</select></label>
-          ) : (
-            <fieldset style={{ border: "1px solid #d9dee7", borderRadius: 8, display: "grid", gap: 12, gridColumn: "1 / -1", padding: 16 }}>
-              <legend style={{ fontWeight: 800, padding: "0 6px" }}>Result categories</legend>
-              <div style={{ display: "grid", gap: 10, gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))" }}>
-                {tournamentCategoryList(resultForm.tournament_id).map((category) => {
-                  const isSelected = resultCategories.includes(category);
-                  const draft = resultCategoryDrafts[category] ?? { medal: resultForm.medal, result_label: resultForm.result_label };
+        <section className="tournament-accordion-list">
+          <details className="collapsible-form-panel" open={Boolean(editingResultId)}>
+            <summary>
+              <span>
+                <strong>{editingResultId ? "Edit result" : "Add result"}</strong>
+                <small>Select a tournament, student, categories, and results.</small>
+              </span>
+            </summary>
+            <form className="admin-form" onSubmit={saveResult}>
+              <label>Tournament<select value={resultForm.tournament_id} onChange={(event) => updateResultField("tournament_id", event.target.value)} required>{tournaments.map((tournament) => <option key={tournament.id} value={tournament.id}>{tournament.name}</option>)}</select></label>
+              <label>Student<select value={resultForm.student_id} onChange={(event) => updateResultField("student_id", event.target.value)} required>{students.map((student) => <option key={student.id} value={student.id}>{student.first_name} {student.last_name}</option>)}</select></label>
+              {editingResultId ? (
+                <label>Category<select value={resultForm.category} onChange={(event) => updateResultField("category", event.target.value)} required><option value="">Select category</option>{tournamentCategoryList(resultForm.tournament_id).map((category) => <option key={category} value={category}>{category}</option>)}</select></label>
+              ) : (
+                <fieldset style={{ border: "1px solid #d9dee7", borderRadius: 8, display: "grid", gap: 12, gridColumn: "1 / -1", padding: 16 }}>
+                  <legend style={{ fontWeight: 800, padding: "0 6px" }}>Result categories</legend>
+                  <div style={{ display: "grid", gap: 10, gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))" }}>
+                    {tournamentCategoryList(resultForm.tournament_id).map((category) => {
+                      const isSelected = resultCategories.includes(category);
+                      const draft = resultCategoryDrafts[category] ?? { medal: resultForm.medal, result_label: resultForm.result_label };
 
-                  return (
-                    <div key={category} style={{ border: "1px solid #d9dee7", borderRadius: 8, display: "grid", gap: 10, padding: 10 }}>
-                      <label className="checkbox-label">
-                        <input
-                          checked={isSelected}
-                          onChange={(event) => toggleResultCategory(category, event.target.checked)}
-                          type="checkbox"
-                        />
-                        {category}
-                      </label>
-                      {isSelected ? (
-                        <>
-                          <label>
-                            Result
-                            <select value={draft.medal} onChange={(event) => updateResultCategoryDraft(category, "medal", event.target.value)}>
-                              {tournamentResults.map((result) => (
-                                <option key={result} value={result}>{result}</option>
-                              ))}
-                            </select>
+                      return (
+                        <div key={category} style={{ border: "1px solid #d9dee7", borderRadius: 8, display: "grid", gap: 10, padding: 10 }}>
+                          <label className="checkbox-label">
+                            <input
+                              checked={isSelected}
+                              onChange={(event) => toggleResultCategory(category, event.target.checked)}
+                              type="checkbox"
+                            />
+                            {category}
                           </label>
-                          <label>
-                            Result note
-                            <input value={draft.result_label} onChange={(event) => updateResultCategoryDraft(category, "result_label", event.target.value)} />
-                          </label>
-                          <p className="small-note">Points: {tournamentPointsForResult(draft.medal) ?? 0}</p>
-                        </>
-                      ) : null}
-                    </div>
-                  );
-                })}
-              </div>
-            </fieldset>
-          )}
-          {editingResultId ? (
-            <>
-              <label>Result<select value={resultForm.medal} onChange={(event) => updateResultField("medal", event.target.value)}>{tournamentResults.map((result) => <option key={result} value={result}>{result}</option>)}</select></label>
-              <p className="small-note">Points will be calculated automatically: {tournamentPointsForResult(resultForm.medal) ?? 0} points.</p>
-              <label>Result note<input value={resultForm.result_label} onChange={(event) => updateResultField("result_label", event.target.value)} /></label>
-            </>
-          ) : null}
-          <button className="primary-button compact" disabled={busy || tournaments.length === 0 || students.length === 0 || (!editingResultId && resultCategories.length === 0)} type="submit">{editingResultId ? "Save result" : "Add selected results"}</button>
-        </form>
+                          {isSelected ? (
+                            <>
+                              <label>
+                                Result
+                                <select value={draft.medal} onChange={(event) => updateResultCategoryDraft(category, "medal", event.target.value)}>
+                                  {tournamentResults.map((result) => (
+                                    <option key={result} value={result}>{result}</option>
+                                  ))}
+                                </select>
+                              </label>
+                              <label>
+                                Result note
+                                <input value={draft.result_label} onChange={(event) => updateResultCategoryDraft(category, "result_label", event.target.value)} />
+                              </label>
+                              <p className="small-note">Points: {tournamentPointsForResult(draft.medal) ?? 0}</p>
+                            </>
+                          ) : null}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </fieldset>
+              )}
+              {editingResultId ? (
+                <>
+                  <label>Result<select value={resultForm.medal} onChange={(event) => updateResultField("medal", event.target.value)}>{tournamentResults.map((result) => <option key={result} value={result}>{result}</option>)}</select></label>
+                  <p className="small-note">Points will be calculated automatically: {tournamentPointsForResult(resultForm.medal) ?? 0} points.</p>
+                  <label>Result note<input value={resultForm.result_label} onChange={(event) => updateResultField("result_label", event.target.value)} /></label>
+                </>
+              ) : null}
+              <button className="primary-button compact" disabled={busy || tournaments.length === 0 || students.length === 0 || (!editingResultId && resultCategories.length === 0)} type="submit">{editingResultId ? "Save result" : "Add selected results"}</button>
+            </form>
+          </details>
+        </section>
 
         <section className="section-title">
           <h2>Your results by tournament</h2>

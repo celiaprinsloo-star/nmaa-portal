@@ -1137,6 +1137,14 @@ label {
   padding: 16px;
 }
 
+.catalog-stock-group .shop-product-grid {
+  padding: 16px;
+}
+
+.shop-stock-group summary small {
+  display: block;
+}
+
 .catalog-admin-card {
   display: grid;
   grid-template-columns: minmax(260px, 1fr);
@@ -1919,6 +1927,31 @@ label {
 .result-participation {
   border-left-color: var(--accent);
   background: #f0fdfa;
+}
+
+.result-pending-result,
+.result-entered {
+  border-left-color: #64748b;
+  background: #f8fafc;
+}
+
+.inline-result-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.inline-result-list span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  padding: 0 8px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: #1f2937;
+  font-size: 12px;
+  font-weight: 850;
 }
 
 .tournament-table-controls {

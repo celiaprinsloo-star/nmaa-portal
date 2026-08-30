@@ -23,16 +23,6 @@ const catalogStyle: CSSProperties = {
   gap: "18px",
 };
 
-const sectionStyle: CSSProperties = {
-  display: "grid",
-  gap: "14px",
-  padding: "18px",
-  background: "#ffffff",
-  border: "1px solid #d9dee7",
-  borderRadius: "8px",
-  boxShadow: "0 16px 34px rgba(15, 23, 42, 0.08)",
-};
-
 const productGridStyle: CSSProperties = {
   display: "grid",
   gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
@@ -81,6 +71,7 @@ export default function OrderingClient() {
   const [token, setToken] = useState("");
   const [catalog, setCatalog] = useState<OrderCatalogItem[]>([]);
   const [quantities, setQuantities] = useState<Record<string, number>>({});
+  const [openCatalogSections, setOpenCatalogSections] = useState<Record<string, boolean>>({});
   const [contactName, setContactName] = useState("");
   const [contactEmail, setContactEmail] = useState("");
   const [notes, setNotes] = useState("");
@@ -248,12 +239,25 @@ export default function OrderingClient() {
 
       <section className="ordering-layout" style={orderingLayoutStyle}>
         <section className="ordering-catalog" style={catalogStyle}>
-          {Object.entries(groupedItems).map(([section, items]) => (
-            <article className="order-section" key={section} style={sectionStyle}>
-              <div className="order-section-header">
-                <h2>{section}</h2>
-                <span>{items.length} items</span>
-              </div>
+          {Object.entries(groupedItems).map(([section, items], index) => {
+            const selectedCount = items.reduce((total, item) => total + (quantities[item.id] ?? 0), 0);
+            const isOpen = openCatalogSections[section] ?? index === 0;
+
+            return (
+              <details
+                className="catalog-stock-group shop-stock-group"
+                key={section}
+                onToggle={(event) =>
+                  setOpenCatalogSections((current) => ({ ...current, [section]: event.currentTarget.open }))
+                }
+                open={isOpen}
+              >
+                <summary>
+                  <span>
+                    <strong>{section}</strong>
+                    <small>{items.length} item{items.length === 1 ? "" : "s"}{selectedCount ? ` | ${selectedCount} selected` : ""}</small>
+                  </span>
+                </summary>
               <div className="shop-product-grid" style={productGridStyle}>
                 {items.map((item) => (
                     <article
@@ -289,8 +293,9 @@ export default function OrderingClient() {
                   </article>
                 ))}
               </div>
-            </article>
-          ))}
+            </details>
+            );
+          })}
           <section className="content-shell">
             <p className="muted">Please note that sizing for uniforms can be irregular. It is the school&apos;s responsibility to ensure the correct fit.</p>
             <p className="muted">Gear ordered through the portal may only be sold to students registered at your own school, and not to students from other schools.</p>
